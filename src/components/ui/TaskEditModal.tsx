@@ -721,7 +721,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, t
                     type="text"
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addUser())}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addUser())}
                     placeholder="Add user"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
