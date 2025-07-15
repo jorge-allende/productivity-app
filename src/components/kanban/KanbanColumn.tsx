@@ -11,9 +11,10 @@ interface KanbanColumnProps {
   title: string;
   tasks: Task[];
   onAddTask: () => void;
+  onTaskClick?: (task: Task) => void;
 }
 
-export const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, tasks, onAddTask }) => {
+export const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, tasks, onAddTask, onTaskClick }) => {
   const { setNodeRef, isOver } = useDroppable({ id });
 
   const taskIds = tasks.map(task => task._id);
@@ -43,7 +44,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, tasks, on
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           <div className="space-y-3">
             {tasks.map((task) => (
-              <TaskCard key={task._id} task={task} />
+              <TaskCard key={task._id} task={task} onTaskClick={onTaskClick} />
             ))}
           </div>
         </SortableContext>
