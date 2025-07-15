@@ -32,7 +32,7 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run ESLint
-        run: npx eslint src --ext .ts,.tsx --format=github
+        run: npx eslint src --ext .ts,.tsx --max-warnings 0
 
       - name: Run tests with coverage
         run: npm test -- --coverage --watchAll=false --testTimeout=10000 --passWithNoTests
