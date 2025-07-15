@@ -18,9 +18,10 @@ interface KanbanBoardProps {
   tasks: Task[];
   onTaskMove: (taskId: string, newStatus: 'todo' | 'in_progress' | 'done', newOrder: number) => void;
   onAddTask: (status: 'todo' | 'in_progress' | 'done') => void;
+  onTaskClick?: (task: Task) => void;
 }
 
-export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onAddTask }) => {
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onAddTask, onTaskClick }) => {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -111,18 +112,21 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onA
             title="To Do"
             tasks={columns.todo}
             onAddTask={() => onAddTask('todo')}
+            onTaskClick={onTaskClick}
           />
           <KanbanColumn
             id="in_progress"
             title="In Progress"
             tasks={columns.in_progress}
             onAddTask={() => onAddTask('in_progress')}
+            onTaskClick={onTaskClick}
           />
           <KanbanColumn
             id="done"
             title="Done"
             tasks={columns.done}
             onAddTask={() => onAddTask('done')}
+            onTaskClick={onTaskClick}
           />
 
           <DragOverlay>

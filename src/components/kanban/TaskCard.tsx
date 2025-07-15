@@ -8,9 +8,10 @@ import { Task } from '../../types/Task';
 
 interface TaskCardProps {
   task: Task;
+  onTaskClick?: (task: Task) => void;
 }
 
-export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
+export const TaskCard: React.FC<TaskCardProps> = ({ task, onTaskClick }) => {
   const {
     attributes,
     listeners,
@@ -31,14 +32,22 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
     high: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (!isDragging && onTaskClick) {
+      e.stopPropagation();
+      onTaskClick(task);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
+      onClick={handleClick}
       className={cn(
-        "bg-white dark:bg-gray-900 p-4 rounded-lg shadow-sm cursor-move hover:shadow-md transition-shadow",
+        "bg-white dark:bg-gray-900 p-4 rounded-lg shadow-sm cursor-move hover:shadow-md transition-shadow min-h-[200px] flex flex-col",
         isDragging && "opacity-50"
       )}
     >
@@ -59,7 +68,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
       <h4 className="font-medium text-gray-900 dark:text-white mb-2">{task.title}</h4>
 
       {/* Description */}
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3 min-h-[3.6rem]">
         {task.description}
       </p>
 
@@ -71,8 +80,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
         </div>
       )}
 
+      {/* Spacer to push footer to bottom */}
+      <div className="flex-grow"></div>
+
       {/* Footer */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mt-auto">
         {/* Assigned users */}
         <div className="flex -space-x-2">
           {task.assignedUsers.slice(0, 3).map((user, index) => (

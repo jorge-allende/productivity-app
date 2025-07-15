@@ -18,6 +18,14 @@ const mockTasks: Task[] = [
     assignedUsers: ['John', 'Sarah'],
     attachments: [],
     order: 1,
+    // Time tracking
+    createdAt: new Date(Date.now() - 172800000), // 2 days ago
+    updatedAt: new Date(Date.now() - 86400000), // 1 day ago
+    // Enhanced collaboration
+    createdBy: 'Alex',
+    watchers: ['Alex', 'John', 'Sarah'],
+    comments: [],
+    mentions: [],
   },
   {
     _id: '2',
@@ -31,6 +39,14 @@ const mockTasks: Task[] = [
     assignedUsers: ['Mike'],
     attachments: [{ name: 'auth-flow.pdf', url: '#', type: 'pdf' }],
     order: 1,
+    // Time tracking
+    createdAt: new Date(Date.now() - 259200000), // 3 days ago
+    updatedAt: new Date(Date.now() - 3600000), // 1 hour ago
+    // Enhanced collaboration
+    createdBy: 'Sarah',
+    watchers: ['Sarah', 'Mike'],
+    comments: [],
+    mentions: [],
   },
 ];
 

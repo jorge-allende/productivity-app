@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
 import { TaskModal } from '../components/ui/TaskModal';
+import { TaskEditModal } from '../components/ui/TaskEditModal';
 import { Task } from '../types/Task';
 
 // Mock data for development
@@ -17,6 +18,36 @@ const mockTasks: Task[] = [
     assignedUsers: ['John', 'Sarah'],
     attachments: [],
     order: 1,
+    // Time tracking
+    createdAt: new Date(Date.now() - 172800000), // 2 days ago
+    updatedAt: new Date(Date.now() - 86400000), // 1 day ago
+    // Enhanced collaboration
+    createdBy: 'Alex',
+    watchers: ['Alex', 'John', 'Sarah', 'Emma'],
+    comments: [
+      {
+        id: '1',
+        user: 'Alex',
+        message: 'Please make sure to follow the brand guidelines for this design.',
+        timestamp: new Date(Date.now() - 86400000),
+        isEdited: false
+      },
+      {
+        id: '2',
+        user: 'John',
+        message: 'Should we include the new testimonials section?',
+        timestamp: new Date(Date.now() - 43200000),
+        isEdited: false
+      },
+      {
+        id: '7',
+        user: 'Current User',
+        message: 'I can work on the testimonials section. Let me create a mockup first.',
+        timestamp: new Date(Date.now() - 7200000),
+        isEdited: false
+      }
+    ],
+    mentions: ['Sarah'],
   },
   {
     _id: '2',
@@ -30,6 +61,36 @@ const mockTasks: Task[] = [
     assignedUsers: ['Mike'],
     attachments: [{ name: 'auth-flow.pdf', url: '#', type: 'pdf' }],
     order: 1,
+    // Time tracking
+    createdAt: new Date(Date.now() - 259200000), // 3 days ago
+    updatedAt: new Date(Date.now() - 3600000), // 1 hour ago
+    // Enhanced collaboration
+    createdBy: 'Sarah',
+    watchers: ['Sarah', 'Mike', 'Alex'],
+    comments: [
+      {
+        id: '3',
+        user: 'Sarah',
+        message: 'Make sure to implement proper password hashing with bcrypt and add rate limiting to prevent brute force attacks.',
+        timestamp: new Date(Date.now() - 259200000),
+        isEdited: true,
+        editedAt: new Date(Date.now() - 172800000),
+        editHistory: [
+          {
+            message: 'Make sure to implement proper password hashing and rate limiting.',
+            editedAt: new Date(Date.now() - 259200000)
+          }
+        ]
+      },
+      {
+        id: '4',
+        user: 'Mike',
+        message: 'Working on the JWT implementation now. Should be ready for review tomorrow.',
+        timestamp: new Date(Date.now() - 3600000),
+        isEdited: false
+      }
+    ],
+    mentions: [],
   },
   {
     _id: '3',
@@ -42,6 +103,30 @@ const mockTasks: Task[] = [
     assignedUsers: ['Emma'],
     attachments: [],
     order: 1,
+    // Time tracking
+    createdAt: new Date(Date.now() - 432000000), // 5 days ago
+    updatedAt: new Date(Date.now() - 345600000), // 4 days ago
+    completedAt: new Date(Date.now() - 345600000), // 4 days ago
+    // Enhanced collaboration
+    createdBy: 'Alex',
+    watchers: ['Alex', 'Emma'],
+    comments: [
+      {
+        id: '5',
+        user: 'Alex',
+        message: 'Please include examples for each endpoint.',
+        timestamp: new Date(Date.now() - 432000000),
+        isEdited: false
+      },
+      {
+        id: '6',
+        user: 'Emma',
+        message: 'Documentation is complete and published!',
+        timestamp: new Date(Date.now() - 345600000),
+        isEdited: false
+      }
+    ],
+    mentions: [],
   },
 ];
 
@@ -49,13 +134,31 @@ export const Dashboard: React.FC = () => {
   const [tasks, setTasks] = useState(mockTasks);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalStatus, setModalStatus] = useState<'todo' | 'in_progress' | 'done'>('todo');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const handleTaskMove = (taskId: string, newStatus: 'todo' | 'in_progress' | 'done', newOrder: number) => {
-    setTasks(prev => prev.map(task => 
-      task._id === taskId 
-        ? { ...task, status: newStatus, order: newOrder }
-        : task
-    ));
+    const now = new Date();
+    setTasks(prev => prev.map(task => {
+      if (task._id === taskId) {
+        const updatedTask = { 
+          ...task, 
+          status: newStatus, 
+          order: newOrder,
+          updatedAt: now
+        };
+        
+        // Set completedAt when moved to done, clear it when moved away from done
+        if (newStatus === 'done' && task.status !== 'done') {
+          updatedTask.completedAt = now;
+        } else if (newStatus !== 'done' && task.status === 'done') {
+          updatedTask.completedAt = undefined;
+        }
+        
+        return updatedTask;
+      }
+      return task;
+    }));
   };
 
   const handleAddTask = (status: 'todo' | 'in_progress' | 'done') => {
@@ -64,15 +167,41 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleCreateTask = (taskData: any) => {
-    const newTask = {
+    const now = new Date();
+    const newTask: Task = {
       _id: Date.now().toString(),
       ...taskData,
       status: modalStatus,
       attachments: [],
       order: tasks.filter(t => t.status === modalStatus).length + 1,
+      // Time tracking
+      createdAt: now,
+      updatedAt: now,
+      // Enhanced collaboration
+      createdBy: 'Current User', // In real app, this would come from authentication
+      watchers: ['Current User'], // Creator automatically watches the task
+      comments: [],
+      mentions: [],
     };
     setTasks(prev => [...prev, newTask]);
     setIsModalOpen(false);
+  };
+
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setIsEditModalOpen(true);
+  };
+
+  const handleTaskUpdate = (updatedTask: Task, commentOnly?: boolean) => {
+    setTasks(prev => prev.map(task => 
+      task._id === updatedTask._id ? { ...updatedTask, updatedAt: new Date() } : task
+    ));
+    
+    // Only close modal if it's not a comment-only update
+    if (!commentOnly) {
+      setIsEditModalOpen(false);
+      setSelectedTask(null);
+    }
   };
 
   return (
@@ -86,6 +215,7 @@ export const Dashboard: React.FC = () => {
         tasks={tasks} 
         onTaskMove={handleTaskMove}
         onAddTask={handleAddTask}
+        onTaskClick={handleTaskClick}
       />
 
       {isModalOpen && (
@@ -93,6 +223,18 @@ export const Dashboard: React.FC = () => {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSave={handleCreateTask}
+        />
+      )}
+
+      {isEditModalOpen && selectedTask && (
+        <TaskEditModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedTask(null);
+          }}
+          task={selectedTask}
+          onSave={handleTaskUpdate}
         />
       )}
     </div>
