@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Pencil, Edit2, Clock, History, Eye } from 'lucide-react';
+import { X, Pencil, Edit2, Clock, History, Eye, Upload, Paperclip, FileText, Image, File } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { Task, TaskComment } from '../../types/Task';
 
@@ -44,6 +44,9 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, t
   const [showWatchersDropdown, setShowWatchersDropdown] = useState(false);
   const [newWatcher, setNewWatcher] = useState('');
   const watchersDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Attachments state
+  const [attachments, setAttachments] = useState<Array<{ name: string; url: string; type: string }>>(task.attachments);
 
   // Convert hex to HSV
   const hexToHsv = (hex: string) => {
@@ -108,6 +111,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, t
     setAssignedUsers(task.assignedUsers);
     setComments(task.comments);
     setWatchers(task.watchers);
+    setAttachments(task.attachments);
     
     // Update HSV values when task color changes
     const [h, s, v] = hexToHsv(task.tagColor);
@@ -190,6 +194,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, t
         tagName: tagName || 'General',
         dueDate: dueDate ? new Date(dueDate).toISOString() : task.dueDate,
         assignedUsers,
+        attachments,
       });
       setIsEditMode(false);
       onClose();
@@ -205,6 +210,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, t
     setTagColor(task.tagColor);
     setDueDate(task.dueDate ? task.dueDate.split('T')[0] : '');
     setAssignedUsers(task.assignedUsers);
+    setAttachments(task.attachments);
     setUserInput('');
     setShowColorPicker(false);
     
@@ -446,6 +452,32 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, t
     };
   }, [showWatchersDropdown]);
 
+  // Attachment handling functions
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newAttachments = Array.from(files).map(file => ({
+        name: file.name,
+        url: URL.createObjectURL(file), // In real app, upload to server and get URL
+        type: file.type || 'application/octet-stream'
+      }));
+      setAttachments([...attachments, ...newAttachments]);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    const newAttachments = [...attachments];
+    // Revoke object URL to prevent memory leaks
+    URL.revokeObjectURL(newAttachments[index].url);
+    newAttachments.splice(index, 1);
+    setAttachments(newAttachments);
+  };
+
+  const getFileIcon = (type: string) => {
+    if (type.startsWith('image/')) return <Image className="w-4 h-4" />;
+    if (type.includes('pdf') || type.includes('document') || type.includes('text')) return <FileText className="w-4 h-4" />;
+    return <File className="w-4 h-4" />;
+  };
 
   if (!isOpen) return null;
 
@@ -511,7 +543,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, t
                           />
                           <button
                             onClick={handleAddWatcher}
-                            className="px-3 py-1 text-sm bg-emerald-500 text-white rounded hover:bg-emerald-600 transition-colors"
+                            className="px-3 py-1 text-sm bg-foreground text-background hover:bg-foreground/90 rounded transition-colors"
                           >
                             Add
                           </button>
@@ -729,7 +761,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, t
                 <button
                   type="button"
                   onClick={addUser}
-                  className="w-10 h-10 flex-shrink-0 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-emerald-500/25 font-semibold text-sm flex items-center justify-center"
+                  className="w-10 h-10 flex-shrink-0 bg-foreground text-background hover:bg-foreground/90 rounded-lg transition-colors font-semibold text-sm flex items-center justify-center"
                 >
                   Add
                 </button>
@@ -760,13 +792,73 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, t
             </div>
           )}
 
+          {/* Attachments Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Attachments
+            </label>
+            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
+              <input
+                type="file"
+                multiple
+                onChange={handleFileUpload}
+                className="hidden"
+                id="file-upload-edit"
+                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.zip,.rar"
+              />
+              <label
+                htmlFor="file-upload-edit"
+                className="cursor-pointer flex flex-col items-center gap-2"
+              >
+                <Upload className="w-8 h-8 text-gray-400" />
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <span className="font-medium text-emerald-600 hover:text-emerald-500">Click to upload</span> or drag and drop
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  PDF, DOC, images, or other files
+                </div>
+              </label>
+            </div>
+            
+            {/* File List */}
+            {attachments.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {attachments.map((attachment, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                  >
+                    <div className="flex-shrink-0 text-gray-500 dark:text-gray-400">
+                      {getFileIcon(attachment.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {attachment.name}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {attachment.type}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-3 pt-4 justify-center">
             <button
               ref={saveButtonRef}
               type="submit"
               onMouseEnter={startHoverEffect}
               onMouseLeave={stopHoverEffect}
-              className="w-32 px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-emerald-500/30 font-semibold text-sm tracking-wide uppercase"
+              className="w-32 px-6 py-3 bg-foreground text-background hover:bg-foreground/90 rounded-lg transition-colors font-semibold text-sm tracking-wide uppercase"
             >
               Save
             </button>
@@ -861,6 +953,48 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, t
               </div>
             </div>
 
+            {/* Attachments Display in View Mode */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Attachments ({task.attachments.length})
+              </label>
+              <div className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white min-h-[36px] flex items-center">
+                {task.attachments.length > 0 ? (
+                  <div className="w-full space-y-2">
+                    {task.attachments.map((attachment, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-3 p-2 bg-white dark:bg-gray-600 rounded border"
+                      >
+                        <div className="flex-shrink-0 text-gray-500 dark:text-gray-400">
+                          {getFileIcon(attachment.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {attachment.name}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {attachment.type}
+                          </div>
+                        </div>
+                        <a
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-shrink-0 p-1 text-emerald-600 hover:text-emerald-500 transition-colors"
+                          title="Download attachment"
+                        >
+                          <Paperclip className="w-4 h-4" />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  'No attachments'
+                )}
+              </div>
+            </div>
+
             {/* Task Metadata */}
             <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
               Created by <span className="font-medium text-gray-900 dark:text-white">{task.createdBy}</span> · 
@@ -897,7 +1031,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, t
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleSaveEdit(comment.id)}
-                                className="px-2 py-1 text-xs bg-emerald-500 text-white rounded hover:bg-emerald-600 transition-colors"
+                                className="px-2 py-1 text-xs bg-foreground text-background hover:bg-foreground/90 rounded transition-colors"
                               >
                                 Save
                               </button>
