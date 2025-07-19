@@ -60,46 +60,46 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave })
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create New Task</h2>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-card rounded-lg w-full max-w-md p-8 border border-border">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-size-1 font-semibold text-card-foreground">Create New Task</h2>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+            className="p-2 hover:bg-accent rounded"
           >
-            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            <X className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-size-4 font-normal text-foreground mb-2">
               Title
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-size-4 font-normal text-foreground mb-2">
               Description
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-size-4 font-normal text-foreground mb-2">
               Priority
             </label>
             <div className="flex gap-2">
@@ -109,12 +109,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave })
                   type="button"
                   onClick={() => setPriority(p)}
                   className={cn(
-                    "px-3 py-1 rounded-lg text-sm font-medium transition-colors",
+                    "px-4 py-2 rounded-lg text-size-4 font-normal transition-colors",
                     priority === p
-                      ? p === 'low' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                        : p === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                      ? p === 'low' ? 'bg-priority-low/10 text-priority-low'
+                        : p === 'medium' ? 'bg-priority-medium/10 text-priority-medium'
+                        : 'bg-priority-high/10 text-priority-high'
+                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                   )}
                 >
                   {p.charAt(0).toUpperCase() + p.slice(1)}
@@ -124,7 +124,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave })
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-size-4 font-normal text-foreground mb-2">
               Tag
             </label>
             <div className="flex gap-2">
@@ -133,7 +133,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave })
                 value={tagName}
                 onChange={(e) => setTagName(e.target.value)}
                 placeholder="Tag name"
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="flex-1 px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <div className="flex gap-1">
                 {predefinedColors.map((color) => (
@@ -142,8 +142,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave })
                     type="button"
                     onClick={() => setTagColor(color)}
                     className={cn(
-                      "w-6 h-6 rounded border-2",
-                      tagColor === color ? 'border-gray-900 dark:border-white' : 'border-transparent'
+                      "w-8 h-8 rounded border-2",
+                      tagColor === color ? 'border-foreground' : 'border-transparent'
                     )}
                     style={{ backgroundColor: color }}
                   />
@@ -153,34 +153,34 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave })
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-size-4 font-normal text-foreground mb-2">
               Due Date
             </label>
             <input
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-size-4 font-normal text-foreground mb-2">
               Assigned Users
             </label>
-            <div className="flex gap-2 mb-2">
+            <div className="flex gap-2 mb-4">
               <input
                 type="text"
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addUser())}
                 placeholder="Add user"
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="flex-1 px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <button
                 type="button"
                 onClick={addUser}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-size-4 font-normal"
               >
                 Add
               </button>
@@ -189,13 +189,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave })
               {assignedUsers.map((user) => (
                 <span
                   key={user}
-                  className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-sm flex items-center gap-1"
+                  className="px-2 py-1 bg-muted text-muted-foreground rounded text-size-4 flex items-center gap-1"
                 >
                   {user}
                   <button
                     type="button"
                     onClick={() => removeUser(user)}
-                    className="hover:text-red-500"
+                    className="hover:text-destructive"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -204,17 +204,17 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave })
             </div>
           </div>
 
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-4 pt-8">
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-size-3 font-normal"
             >
               Create Task
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors text-size-3 font-normal"
             >
               Cancel
             </button>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -11,7 +11,6 @@ import {
 } from '@dnd-kit/core';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskCard } from './TaskCard';
-import { CalendarWidget } from '../calendar/CalendarWidget';
 import { Task } from '../../types/Task';
 
 interface KanbanBoardProps {
@@ -23,6 +22,28 @@ interface KanbanBoardProps {
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onAddTask, onTaskClick }) => {
   const [activeId, setActiveId] = useState<string | null>(null);
+  
+  // Initialize sort modes from localStorage or defaults
+  const [columnSortModes, setColumnSortModes] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('kanbanSortModes');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved sort modes:', e);
+      }
+    }
+    return {
+      todo: 'custom',
+      in_progress: 'custom',
+      done: 'custom'
+    };
+  });
+
+  // Save sort modes to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('kanbanSortModes', JSON.stringify(columnSortModes));
+  }, [columnSortModes]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -32,10 +53,40 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onA
     })
   );
 
+  const sortTasks = (tasks: Task[], sortMode: string): Task[] => {
+    const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+    
+    switch(sortMode) {
+      case 'priority':
+        return [...tasks].sort((a, b) => 
+          priorityOrder[a.priority] - priorityOrder[b.priority]
+        );
+      case 'date':
+        return [...tasks].sort((a, b) => {
+          if (!a.dueDate) return 1;
+          if (!b.dueDate) return -1;
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        });
+      case 'category':
+        return [...tasks].sort((a, b) => 
+          (a.tagName || '').localeCompare(b.tagName || '')
+        );
+      default: // 'custom'
+        return [...tasks].sort((a, b) => a.order - b.order);
+    }
+  };
+
   const columns = {
-    todo: tasks.filter(task => task.status === 'todo').sort((a, b) => a.order - b.order),
-    in_progress: tasks.filter(task => task.status === 'in_progress').sort((a, b) => a.order - b.order),
-    done: tasks.filter(task => task.status === 'done').sort((a, b) => a.order - b.order),
+    todo: sortTasks(tasks.filter(task => task.status === 'todo'), columnSortModes.todo),
+    in_progress: sortTasks(tasks.filter(task => task.status === 'in_progress'), columnSortModes.in_progress),
+    done: sortTasks(tasks.filter(task => task.status === 'done'), columnSortModes.done),
+  };
+
+  const handleSortModeChange = (columnId: string, mode: string) => {
+    setColumnSortModes(prev => ({
+      ...prev,
+      [columnId]: mode
+    }));
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -66,6 +117,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onA
       if (!overTask) return;
       targetColumn = overTask.status;
       targetTasks = columns[targetColumn];
+    }
+
+    // Check if moving within same column and column is not in custom mode
+    if (activeTask.status === targetColumn && columnSortModes[targetColumn] !== 'custom') {
+      // Switch to custom mode to allow manual reordering
+      handleSortModeChange(targetColumn, 'custom');
     }
 
     // Calculate new order
@@ -99,45 +156,49 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onA
   const activeTask = activeId ? tasks.find(task => task._id === activeId) : null;
 
   return (
-    <div className="flex gap-6">
-      <div className="flex-1 flex gap-6">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <KanbanColumn
-            id="todo"
-            title="To Do"
-            tasks={columns.todo}
-            onAddTask={() => onAddTask('todo')}
-            onTaskClick={onTaskClick}
-          />
-          <KanbanColumn
-            id="in_progress"
-            title="In Progress"
-            tasks={columns.in_progress}
-            onAddTask={() => onAddTask('in_progress')}
-            onTaskClick={onTaskClick}
-          />
-          <KanbanColumn
-            id="done"
-            title="Done"
-            tasks={columns.done}
-            onAddTask={() => onAddTask('done')}
-            onTaskClick={onTaskClick}
-          />
-
-          <DragOverlay>
-            {activeTask && <TaskCard task={activeTask} />}
-          </DragOverlay>
-        </DndContext>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="flex justify-center">
+        <div className="overflow-x-auto max-w-6xl">
+          <div className="grid grid-cols-3 gap-3 pb-2 justify-center" style={{ gridTemplateColumns: 'repeat(3, 280px)' }}>
+            <KanbanColumn
+              id="todo"
+              title="To Do"
+              tasks={columns.todo}
+              onAddTask={() => onAddTask('todo')}
+              onTaskClick={onTaskClick}
+              sortMode={columnSortModes.todo}
+              onSortModeChange={(mode) => handleSortModeChange('todo', mode)}
+            />
+            <KanbanColumn
+              id="in_progress"
+              title="In Progress"
+              tasks={columns.in_progress}
+              onAddTask={() => onAddTask('in_progress')}
+              onTaskClick={onTaskClick}
+              sortMode={columnSortModes.in_progress}
+              onSortModeChange={(mode) => handleSortModeChange('in_progress', mode)}
+            />
+            <KanbanColumn
+              id="done"
+              title="Done"
+              tasks={columns.done}
+              onAddTask={() => onAddTask('done')}
+              onTaskClick={onTaskClick}
+              sortMode={columnSortModes.done}
+              onSortModeChange={(mode) => handleSortModeChange('done', mode)}
+            />
+          </div>
+        </div>
       </div>
-
-      <div className="w-80">
-        <CalendarWidget tasks={tasks} />
-      </div>
-    </div>
+      
+      <DragOverlay>
+        {activeTask && <TaskCard task={activeTask} />}
+      </DragOverlay>
+    </DndContext>
   );
 };

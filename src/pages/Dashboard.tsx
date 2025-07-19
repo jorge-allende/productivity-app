@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
 import { TaskModal } from '../components/ui/TaskModal';
 import { TaskEditModal } from '../components/ui/TaskEditModal';
 import { Task } from '../types/Task';
+import { useDashboardContext } from '../contexts/DashboardContext';
 
 // Mock data for development
 const mockTasks: Task[] = [
@@ -131,11 +132,17 @@ const mockTasks: Task[] = [
 ];
 
 export const Dashboard: React.FC = () => {
+  const { filters, setAddTaskCallback } = useDashboardContext();
   const [tasks, setTasks] = useState(mockTasks);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalStatus, setModalStatus] = useState<'todo' | 'in_progress' | 'done'>('todo');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  // Register the add task callback with the Layout
+  useEffect(() => {
+    setAddTaskCallback(() => handleAddTask('todo'));
+    return () => setAddTaskCallback(null);
+  }, [setAddTaskCallback]);
 
   const handleTaskMove = (taskId: string, newStatus: 'todo' | 'in_progress' | 'done', newOrder: number) => {
     const now = new Date();
@@ -204,15 +211,29 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+
+
+  // Apply filters to tasks
+  const filteredTasks = tasks.filter(task => {
+    if (filters.priority?.length && !filters.priority.includes(task.priority)) {
+      return false;
+    }
+    if (filters.category?.length && !filters.category.includes(task.tagName)) {
+      return false;
+    }
+    if (filters.assignedUsers?.length) {
+      const hasAssignedUser = task.assignedUsers.some(user => 
+        filters.assignedUsers?.includes(user)
+      );
+      if (!hasAssignedUser) return false;
+    }
+    return true;
+  });
+
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Project Board</h1>
-        <p className="text-gray-600 dark:text-gray-400">Manage your tasks efficiently</p>
-      </div>
-
       <KanbanBoard 
-        tasks={tasks} 
+        tasks={filteredTasks} 
         onTaskMove={handleTaskMove}
         onAddTask={handleAddTask}
         onTaskClick={handleTaskClick}

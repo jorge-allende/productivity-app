@@ -26,11 +26,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onTaskClick }) => {
     transition,
   };
 
-  const priorityColors = {
-    low: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-    high: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-  };
 
   const handleClick = (e: React.MouseEvent) => {
     if (!isDragging && onTaskClick) {
@@ -47,59 +42,56 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onTaskClick }) => {
       {...listeners}
       onClick={handleClick}
       className={cn(
-        "bg-white dark:bg-gray-900 p-4 rounded-lg shadow-sm cursor-move hover:shadow-md transition-shadow min-h-[200px] flex flex-col",
+        "bg-background p-3 rounded shadow-sm cursor-move hover:shadow-md transition-all flex flex-col border border-border w-full",
         isDragging && "opacity-50"
       )}
     >
       {/* Tag */}
-      <div className="flex items-center gap-2 mb-3">
-        <span
-          className="px-2 py-1 rounded text-xs font-medium"
-          style={{ backgroundColor: task.tagColor + '20', color: task.tagColor }}
-        >
-          {task.tagName}
-        </span>
-        <span className={cn("px-2 py-1 rounded text-xs font-medium", priorityColors[task.priority])}>
-          {task.priority}
-        </span>
+      <div className="flex items-center gap-2 mb-2">
+        {task.tagName && (
+          <>
+            <span
+              className="inline-block w-2 h-2 rounded-full"
+              style={{ backgroundColor: task.tagColor }}
+            />
+            <span className="text-xs text-muted-foreground font-medium">{task.tagName}</span>
+          </>
+        )}
       </div>
 
       {/* Title */}
-      <h4 className="font-medium text-gray-900 dark:text-white mb-2">{task.title}</h4>
+      <h4 className="text-sm font-medium text-foreground mb-2 line-clamp-2">{task.title}</h4>
 
       {/* Description */}
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3 min-h-[3.6rem]">
+      <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
         {task.description}
       </p>
 
       {/* Due date */}
       {task.dueDate && (
-        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-3">
+        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
           <Calendar className="w-3 h-3" />
-          <span>{format(new Date(task.dueDate), 'MMM d, yyyy')}</span>
+          <span>{format(new Date(task.dueDate), 'MMM d')}</span>
         </div>
       )}
 
-      {/* Spacer to push footer to bottom */}
-      <div className="flex-grow"></div>
-
       {/* Footer */}
-      <div className="flex items-center justify-between mt-auto">
+      <div className="flex items-center justify-between mt-auto pt-2">
         {/* Assigned users */}
-        <div className="flex -space-x-2">
+        <div className="flex -space-x-1">
           {task.assignedUsers.slice(0, 3).map((user, index) => (
             <div
               key={index}
-              className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 border-2 border-white dark:border-gray-900 flex items-center justify-center"
+              className="w-5 h-5 rounded-full bg-muted border border-background flex items-center justify-center"
             >
-              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              <span className="text-[10px] font-medium text-muted-foreground">
                 {user.charAt(0).toUpperCase()}
               </span>
             </div>
           ))}
           {task.assignedUsers.length > 3 && (
-            <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 border-2 border-white dark:border-gray-900 flex items-center justify-center">
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+            <div className="w-5 h-5 rounded-full bg-muted border border-background flex items-center justify-center">
+              <span className="text-[10px] font-medium text-muted-foreground">
                 +{task.assignedUsers.length - 3}
               </span>
             </div>
@@ -107,17 +99,19 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onTaskClick }) => {
         </div>
 
         {/* Icons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {task.attachments.length > 0 && (
-            <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-              <Paperclip className="w-4 h-4" />
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <Paperclip className="w-3 h-3" />
               <span className="text-xs">{task.attachments.length}</span>
             </div>
           )}
-          <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-            <MessageSquare className="w-4 h-4" />
-            <span className="text-xs">0</span>
-          </div>
+          {task.comments && task.comments.length > 0 && (
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <MessageSquare className="w-3 h-3" />
+              <span className="text-xs">{task.comments.length}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
