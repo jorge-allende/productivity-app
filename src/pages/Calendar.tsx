@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, startOfWeek, endOfWeek } from 'date-fns';
 import { cn } from '../utils/cn';
 import { TaskDetailModal } from '../components/ui/TaskDetailModal';
+import { BoardHeader } from '../components/board/BoardHeader';
 import { Task } from '../types/Task';
 
 const mockTasks: Task[] = [
@@ -85,35 +86,37 @@ export const Calendar: React.FC = () => {
   };
 
   const priorityColors = {
-    low: 'bg-green-500',
-    medium: 'bg-yellow-500',
-    high: 'bg-red-500',
+    low: 'bg-priority-low',
+    medium: 'bg-priority-medium',
+    high: 'bg-priority-high',
+    urgent: 'bg-priority-urgent',
   };
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Calendar</h1>
-        <p className="text-gray-600 dark:text-gray-400">View your tasks by date</p>
+      <div className="mb-2">
+        <h1 className="text-lg font-semibold text-foreground">Calendar</h1>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+      <BoardHeader />
+
+      <div className="bg-card rounded-lg shadow-sm border border-border">
         {/* Calendar Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-8 border-b border-border">
           <button
             onClick={goToPreviousMonth}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+            className="p-2 hover:bg-accent rounded"
           >
-            <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            <ChevronLeft className="w-5 h-5 text-muted-foreground" />
           </button>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-size-2 font-semibold text-card-foreground">
             {format(currentDate, 'MMMM yyyy')}
           </h2>
           <button
             onClick={goToNextMonth}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+            className="p-2 hover:bg-accent rounded"
           >
-            <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
 

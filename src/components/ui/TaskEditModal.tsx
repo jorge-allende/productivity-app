@@ -864,13 +864,13 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, t
             {/* Task Metadata */}
             <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
               Created by <span className="font-medium text-gray-900 dark:text-white">{task.createdBy}</span> · 
-              Created on {task.createdAt.toLocaleDateString()}{task.completedAt ? ' · ' : ' · '}
+              Created on {task.createdAt.toLocaleDateString()} · 
               {task.completedAt && (
                 <span className="text-green-600 dark:text-green-400 font-medium">
-                  Completed on {task.completedAt.toLocaleDateString()} · 
+                   Completed on {task.completedAt.toLocaleDateString()} · 
                 </span>
               )}
-              Last updated {task.updatedAt.toLocaleDateString()}
+               Last updated {task.updatedAt.toLocaleDateString()}
             </div>
 
 

@@ -15,34 +15,35 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
   if (!isOpen) return null;
 
   const priorityColors = {
-    low: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-    high: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+    low: 'bg-priority-low/10 text-priority-low',
+    medium: 'bg-priority-medium/10 text-priority-medium',
+    high: 'bg-priority-high/10 text-priority-high',
+    urgent: 'bg-priority-urgent/10 text-priority-urgent',
   };
 
   const statusColors = {
-    todo: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-    in_progress: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-    done: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    todo: 'bg-muted text-muted-foreground',
+    in_progress: 'bg-primary/10 text-primary',
+    done: 'bg-priority-low/10 text-priority-low',
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-2xl max-h-[80vh] overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-card rounded-lg w-full max-w-2xl max-h-[80vh] overflow-hidden border border-border">
+        <div className="flex items-center justify-between p-8 border-b border-border">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-size-1 font-semibold text-card-foreground">
               Tasks for {format(date, 'MMMM d, yyyy')}
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-size-4 text-muted-foreground">
               {tasks.length} task{tasks.length !== 1 ? 's' : ''} scheduled
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+            className="p-2 hover:bg-accent rounded"
           >
-            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            <X className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
 
