@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, MoreVertical, Check, ArrowUpDown, Calendar, Tag, Hash } from 'lucide-react';
+import { Plus, MoreVertical, Check, ArrowUpDown, Calendar, Tag } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { TaskCard } from './TaskCard';
 import { Task } from '../../types/Task';
