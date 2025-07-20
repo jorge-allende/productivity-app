@@ -16,7 +16,7 @@ export interface Task {
   title: string;
   description: string;
   columnId: string;
-  priority: 'low' | 'medium' | 'high';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
   tagColor: string;
   tagName: string;
   dueDate?: string;
