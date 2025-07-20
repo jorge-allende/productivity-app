@@ -36,30 +36,57 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ tasks }) => {
     low: 'bg-priority-low',
     medium: 'bg-priority-medium',
     high: 'bg-priority-high',
-    urgent: 'bg-priority-urgent',
+    urgent: 'bg-red-500',
   };
+
+  // Get task count color based on number
+  const getCountBadgeColor = (count: number) => {
+    if (count === 0) return 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400';
+    if (count <= 2) return 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300';
+    if (count <= 4) return 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300';
+    return 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300';
+  };
+
+  // Get total tasks for current month
+  const monthTasks = tasks.filter(task => {
+    if (!task.dueDate) return false;
+    const taskDate = new Date(task.dueDate);
+    return isSameMonth(taskDate, currentDate);
+  });
+  const monthTaskCount = monthTasks.length;
 
   return (
     <div className="bg-card rounded-lg border border-border shadow-sm min-h-[400px] flex flex-col">
       <div className="px-3 py-2.5 border-b border-border">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-foreground">Calendar</h3>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={goToPreviousMonth}
-            className="p-0.5 hover:bg-accent rounded transition-colors"
-          >
-            <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
-          </button>
-          <span className="text-xs text-muted-foreground min-w-[100px] text-center">
-            {format(currentDate, 'MMM yyyy')}
-          </span>
-          <button
-            onClick={goToNextMonth}
-            className="p-0.5 hover:bg-accent rounded transition-colors"
-          >
-            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-          </button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={goToPreviousMonth}
+              className="p-0.5 hover:bg-accent rounded transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+            <span className="text-xs text-muted-foreground min-w-[100px] text-center">
+              {format(currentDate, 'MMM yyyy')}
+            </span>
+            <button
+              onClick={goToNextMonth}
+              className="p-0.5 hover:bg-accent rounded transition-colors"
+            >
+              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          </div>
+          {/* Month task count badge */}
+          {monthTaskCount > 0 && (
+            <div className={cn(
+              "px-1.5 py-0.5 rounded-full text-xs font-medium",
+              getCountBadgeColor(monthTaskCount)
+            )}>
+              {monthTaskCount}
+            </div>
+          )}
           </div>
         </div>
       </div>
@@ -90,14 +117,27 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ tasks }) => {
               >
                 <span>{format(day, 'd')}</span>
                 {dayTasks.length > 0 && (
-                  <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex gap-0.5">
-                    {dayTasks.slice(0, 2).map((task, i) => (
-                      <div
-                        key={i}
-                        className={cn("w-1 h-1 rounded-full", priorityColors[task.priority])}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    {/* Task count badge */}
+                    <div className="absolute -top-1 -right-1 z-10">
+                      <div className={cn(
+                        "w-4 h-4 rounded-full text-[10px] font-medium flex items-center justify-center",
+                        getCountBadgeColor(dayTasks.length),
+                        "shadow-sm border border-white dark:border-gray-800"
+                      )}>
+                        {dayTasks.length}
+                      </div>
+                    </div>
+                    {/* Priority dots */}
+                    <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex gap-0.5">
+                      {dayTasks.slice(0, 2).map((task, i) => (
+                        <div
+                          key={i}
+                          className={cn("w-1 h-1 rounded-full", priorityColors[task.priority])}
+                        />
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             );
@@ -105,7 +145,17 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ tasks }) => {
         </div>
       
         <div className="mt-auto pt-3 border-t border-border">
-          <h4 className="text-xs font-medium text-foreground mb-2">Today's Tasks</h4>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs font-medium text-foreground">Today's Tasks</h4>
+            {getTasksForDay(new Date()).length > 0 && (
+              <div className={cn(
+                "px-1.5 py-0.5 rounded-full text-[10px] font-medium",
+                getCountBadgeColor(getTasksForDay(new Date()).length)
+              )}>
+                {getTasksForDay(new Date()).length}
+              </div>
+            )}
+          </div>
           <div className="space-y-1">
             {getTasksForDay(new Date()).length === 0 ? (
               <p className="text-xs text-muted-foreground">No tasks for today</p>
