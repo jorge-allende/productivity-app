@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -9,19 +9,42 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
+import { Plus } from 'lucide-react';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskCard } from './TaskCard';
 import { Task } from '../../types/Task';
+import { Column } from '../../types/Column';
+import { cn } from '../../utils/cn';
 
 interface KanbanBoardProps {
   tasks: Task[];
-  onTaskMove: (taskId: string, newStatus: 'todo' | 'in_progress' | 'done', newOrder: number) => void;
-  onAddTask: (status: 'todo' | 'in_progress' | 'done') => void;
+  columns: Column[];
+  boardName: string;
+  onTaskMove: (taskId: string, newColumnId: string, newOrder: number) => void;
+  onAddTask: (columnId: string) => void;
+  onAddColumn: () => void;
+  onDeleteColumn: (columnId: string) => void;
+  onRenameColumn: (columnId: string, newTitle: string) => void;
+  onRenameBoardName: (newName: string) => void;
   onTaskClick?: (task: Task) => void;
 }
 
-export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onAddTask, onTaskClick }) => {
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({ 
+  tasks, 
+  columns, 
+  boardName,
+  onTaskMove, 
+  onAddTask, 
+  onAddColumn, 
+  onDeleteColumn, 
+  onRenameColumn,
+  onRenameBoardName,
+  onTaskClick 
+}) => {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [isEditingBoardName, setIsEditingBoardName] = useState(false);
+  const [editBoardNameValue, setEditBoardNameValue] = useState(boardName);
+  const boardNameInputRef = useRef<HTMLInputElement>(null);
   
   // Initialize sort modes from localStorage or defaults
   const [columnSortModes, setColumnSortModes] = useState<Record<string, string>>(() => {
@@ -33,17 +56,31 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onA
         console.error('Failed to parse saved sort modes:', e);
       }
     }
-    return {
-      todo: 'custom',
-      in_progress: 'custom',
-      done: 'custom'
-    };
+    // Initialize with 'custom' for all columns
+    const modes: Record<string, string> = {};
+    columns.forEach(col => {
+      modes[col.id] = 'custom';
+    });
+    return modes;
   });
 
   // Save sort modes to localStorage when they change
   useEffect(() => {
     localStorage.setItem('kanbanSortModes', JSON.stringify(columnSortModes));
   }, [columnSortModes]);
+
+  // Update edit value when board name prop changes
+  useEffect(() => {
+    setEditBoardNameValue(boardName);
+  }, [boardName]);
+
+  // Focus and select text when entering board name edit mode
+  useEffect(() => {
+    if (isEditingBoardName && boardNameInputRef.current) {
+      boardNameInputRef.current.focus();
+      boardNameInputRef.current.select();
+    }
+  }, [isEditingBoardName]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -76,10 +113,43 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onA
     }
   };
 
-  const columns = {
-    todo: sortTasks(tasks.filter(task => task.status === 'todo'), columnSortModes.todo),
-    in_progress: sortTasks(tasks.filter(task => task.status === 'in_progress'), columnSortModes.in_progress),
-    done: sortTasks(tasks.filter(task => task.status === 'done'), columnSortModes.done),
+  const getColumnTasks = (columnId: string) => {
+    const filteredTasks = tasks.filter(task => task.columnId === columnId);
+    return sortTasks(filteredTasks, columnSortModes[columnId] || 'custom');
+  };
+
+  // Board name editing handlers
+  const handleBoardNameClick = () => {
+    setIsEditingBoardName(true);
+  };
+
+  const handleBoardNameSave = () => {
+    const trimmedValue = editBoardNameValue.trim();
+    if (trimmedValue && trimmedValue !== boardName) {
+      onRenameBoardName(trimmedValue);
+    } else {
+      setEditBoardNameValue(boardName); // Reset to original if invalid
+    }
+    setIsEditingBoardName(false);
+  };
+
+  const handleBoardNameCancel = () => {
+    setEditBoardNameValue(boardName);
+    setIsEditingBoardName(false);
+  };
+
+  const handleBoardNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleBoardNameSave();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleBoardNameCancel();
+    }
+  };
+
+  const handleBoardNameBlur = () => {
+    handleBoardNameSave();
   };
 
   const handleSortModeChange = (columnId: string, mode: string) => {
@@ -105,29 +175,31 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onA
     const overId = over.id as string;
     
     // Determine the target column
-    let targetColumn: 'todo' | 'in_progress' | 'done';
+    let targetColumnId: string;
     let targetTasks: Task[];
 
-    if (overId === 'todo' || overId === 'in_progress' || overId === 'done') {
-      targetColumn = overId;
-      targetTasks = columns[targetColumn];
+    // Check if dropped on a column header
+    const targetColumn = columns.find(col => col.id === overId);
+    if (targetColumn) {
+      targetColumnId = targetColumn.id;
+      targetTasks = getColumnTasks(targetColumnId);
     } else {
       // Dropped on another task
       const overTask = tasks.find(task => task._id === overId);
       if (!overTask) return;
-      targetColumn = overTask.status;
-      targetTasks = columns[targetColumn];
+      targetColumnId = overTask.columnId;
+      targetTasks = getColumnTasks(targetColumnId);
     }
 
     // Check if moving within same column and column is not in custom mode
-    if (activeTask.status === targetColumn && columnSortModes[targetColumn] !== 'custom') {
+    if (activeTask.columnId === targetColumnId && columnSortModes[targetColumnId] !== 'custom') {
       // Switch to custom mode to allow manual reordering
-      handleSortModeChange(targetColumn, 'custom');
+      handleSortModeChange(targetColumnId, 'custom');
     }
 
     // Calculate new order
     let newOrder: number;
-    if (overId === targetColumn) {
+    if (overId === targetColumnId) {
       // Dropped on empty column
       newOrder = targetTasks.length > 0 ? targetTasks[targetTasks.length - 1].order + 1 : 1;
     } else {
@@ -137,7 +209,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onA
         newOrder = overTask.order;
         
         // If moving within the same column, adjust order calculation
-        if (activeTask.status === targetColumn) {
+        if (activeTask.columnId === targetColumnId) {
           const activeIndex = targetTasks.findIndex(task => task._id === active.id);
           if (activeIndex < overIndex) {
             newOrder = overTask.order;
@@ -150,7 +222,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onA
       }
     }
 
-    onTaskMove(activeTask._id, targetColumn, newOrder);
+    onTaskMove(activeTask._id, targetColumnId, newOrder);
   };
 
   const activeTask = activeId ? tasks.find(task => task._id === activeId) : null;
@@ -162,36 +234,72 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onA
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex justify-center">
-        <div className="overflow-x-auto max-w-6xl">
-          <div className="grid grid-cols-3 gap-3 pb-2 justify-center" style={{ gridTemplateColumns: 'repeat(3, 280px)' }}>
-            <KanbanColumn
-              id="todo"
-              title="To Do"
-              tasks={columns.todo}
-              onAddTask={() => onAddTask('todo')}
-              onTaskClick={onTaskClick}
-              sortMode={columnSortModes.todo}
-              onSortModeChange={(mode) => handleSortModeChange('todo', mode)}
+      <div className="w-full">
+        {/* Column Management Header - Fixed width, not scrollable */}
+        <div className="flex items-center justify-between mb-4 pl-4 pr-2">
+          {isEditingBoardName ? (
+            <input
+              ref={boardNameInputRef}
+              value={editBoardNameValue}
+              onChange={(e) => setEditBoardNameValue(e.target.value)}
+              onKeyDown={handleBoardNameKeyDown}
+              onBlur={handleBoardNameBlur}
+              className="text-lg font-semibold text-foreground bg-background border border-border rounded px-2 py-1 min-w-0 flex-1 max-w-[300px]"
+              maxLength={100}
             />
-            <KanbanColumn
-              id="in_progress"
-              title="In Progress"
-              tasks={columns.in_progress}
-              onAddTask={() => onAddTask('in_progress')}
-              onTaskClick={onTaskClick}
-              sortMode={columnSortModes.in_progress}
-              onSortModeChange={(mode) => handleSortModeChange('in_progress', mode)}
-            />
-            <KanbanColumn
-              id="done"
-              title="Done"
-              tasks={columns.done}
-              onAddTask={() => onAddTask('done')}
-              onTaskClick={onTaskClick}
-              sortMode={columnSortModes.done}
-              onSortModeChange={(mode) => handleSortModeChange('done', mode)}
-            />
+          ) : (
+            <h2 
+              className="text-lg font-semibold text-foreground cursor-pointer hover:text-primary transition-colors hover:bg-background/50 rounded px-2 py-1"
+              onClick={handleBoardNameClick}
+              title="Click to edit board name"
+            >
+              {boardName}
+            </h2>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              {columns.length} of 4 columns
+            </span>
+            <button
+              onClick={onAddColumn}
+              disabled={columns.length >= 4}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                columns.length >= 4
+                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+              )}
+            >
+              <Plus className="w-4 h-4" />
+              Add Column
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable Grid Layout */}
+        <div className="overflow-x-auto">
+          <div 
+            className="grid gap-3 pb-4 px-4" 
+            style={{ 
+              gridTemplateColumns: `repeat(${columns.length}, 280px)`,
+              minWidth: `${columns.length * 280 + (columns.length - 1) * 12}px`
+            }}
+          >
+            {columns.map((column) => (
+              <KanbanColumn
+                key={column.id}
+                id={column.id}
+                title={column.title}
+                tasks={getColumnTasks(column.id)}
+                onAddTask={() => onAddTask(column.id)}
+                onTaskClick={onTaskClick}
+                sortMode={columnSortModes[column.id] || 'custom'}
+                onSortModeChange={(mode) => handleSortModeChange(column.id, mode)}
+                canDelete={columns.length > 2}
+                onDelete={() => onDeleteColumn(column.id)}
+                onRename={(newTitle) => onRenameColumn(column.id, newTitle)}
+              />
+            ))}
           </div>
         </div>
       </div>

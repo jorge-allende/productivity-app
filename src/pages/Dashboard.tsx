@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
 import { TaskModal } from '../components/ui/TaskModal';
 import { TaskEditModal } from '../components/ui/TaskEditModal';
 import { Task } from '../types/Task';
+import { Column, DEFAULT_COLUMNS } from '../types/Column';
 import { useDashboardContext } from '../contexts/DashboardContext';
 
 // Mock data for development
@@ -11,7 +12,7 @@ const mockTasks: Task[] = [
     _id: '1',
     title: 'Design new landing page',
     description: 'Create a modern and responsive landing page design',
-    status: 'todo' as const,
+    columnId: 'todo',
     priority: 'high' as const,
     tagColor: '#3B82F6',
     tagName: 'Design',
@@ -54,7 +55,7 @@ const mockTasks: Task[] = [
     _id: '2',
     title: 'Implement authentication',
     description: 'Add user authentication with JWT tokens',
-    status: 'in_progress' as const,
+    columnId: 'in_progress',
     priority: 'high' as const,
     tagColor: '#10B981',
     tagName: 'Development',
@@ -97,7 +98,7 @@ const mockTasks: Task[] = [
     _id: '3',
     title: 'Write documentation',
     description: 'Document the API endpoints and usage',
-    status: 'done' as const,
+    columnId: 'done',
     priority: 'medium' as const,
     tagColor: '#F59E0B',
     tagName: 'Documentation',
@@ -134,31 +135,105 @@ const mockTasks: Task[] = [
 export const Dashboard: React.FC = () => {
   const { filters, setAddTaskCallback } = useDashboardContext();
   const [tasks, setTasks] = useState(mockTasks);
+  const [columns, setColumns] = useState<Column[]>(() => {
+    const saved = localStorage.getItem('kanbanColumns');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved columns:', e);
+      }
+    }
+    return DEFAULT_COLUMNS;
+  });
+  const [boardName, setBoardName] = useState<string>(() => {
+    const saved = localStorage.getItem('kanbanBoardName');
+    return saved || 'Kanban Board';
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalStatus, setModalStatus] = useState<'todo' | 'in_progress' | 'done'>('todo');
+  const [modalColumnId, setModalColumnId] = useState<string>('todo');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  // Register the add task callback with the Layout
+  // Save columns to localStorage when they change
   useEffect(() => {
-    setAddTaskCallback(() => handleAddTask('todo'));
-    return () => setAddTaskCallback(null);
-  }, [setAddTaskCallback]);
+    localStorage.setItem('kanbanColumns', JSON.stringify(columns));
+  }, [columns]);
 
-  const handleTaskMove = (taskId: string, newStatus: 'todo' | 'in_progress' | 'done', newOrder: number) => {
+  // Save board name to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('kanbanBoardName', boardName);
+  }, [boardName]);
+
+  // Memoize the first column ID to prevent unnecessary callback recreation
+  const firstColumnId = useMemo(() => columns[0]?.id || 'todo', [columns]);
+  
+  // Ref to store the current firstColumnId without causing re-renders
+  const firstColumnIdRef = useRef(firstColumnId);
+  
+  // Update ref when firstColumnId changes
+  useEffect(() => {
+    firstColumnIdRef.current = firstColumnId;
+  }, [firstColumnId]);
+
+  // Column management functions
+  const handleAddColumn = () => {
+    if (columns.length >= 4) return;
+    
+    const newColumn: Column = {
+      id: `column_${Date.now()}`,
+      title: `Column ${columns.length + 1}`,
+      order: columns.length + 1
+    };
+    
+    setColumns(prev => [...prev, newColumn]);
+  };
+
+  const handleDeleteColumn = (columnId: string) => {
+    if (columns.length <= 2) return;
+    
+    // Move tasks from deleted column to the first column
+    const firstColumnId = columns[0].id;
+    setTasks(prev => prev.map(task => 
+      task.columnId === columnId ? { ...task, columnId: firstColumnId } : task
+    ));
+    
+    setColumns(prev => prev.filter(col => col.id !== columnId));
+  };
+
+  const handleRenameColumn = (columnId: string, newTitle: string) => {
+    // Validate and clean the new title
+    const trimmedTitle = newTitle.trim();
+    if (!trimmedTitle) return; // Don't allow empty titles
+    
+    setColumns(prev => prev.map(col => 
+      col.id === columnId ? { ...col, title: trimmedTitle } : col
+    ));
+  };
+
+  const handleRenameBoardName = (newName: string) => {
+    // Validate and clean the new name
+    const trimmedName = newName.trim();
+    if (!trimmedName) return; // Don't allow empty names
+    
+    setBoardName(trimmedName);
+  };
+
+  const handleTaskMove = (taskId: string, newColumnId: string, newOrder: number) => {
     const now = new Date();
     setTasks(prev => prev.map(task => {
       if (task._id === taskId) {
         const updatedTask = { 
           ...task, 
-          status: newStatus, 
+          columnId: newColumnId, 
           order: newOrder,
           updatedAt: now
         };
         
-        // Set completedAt when moved to done, clear it when moved away from done
-        if (newStatus === 'done' && task.status !== 'done') {
+        // Set completedAt when moved to done column, clear it when moved away from done
+        const doneColumn = columns.find(col => col.title.toLowerCase().includes('done'));
+        if (newColumnId === doneColumn?.id && task.columnId !== doneColumn?.id) {
           updatedTask.completedAt = now;
-        } else if (newStatus !== 'done' && task.status === 'done') {
+        } else if (newColumnId !== doneColumn?.id && task.columnId === doneColumn?.id) {
           updatedTask.completedAt = undefined;
         }
         
@@ -168,19 +243,32 @@ export const Dashboard: React.FC = () => {
     }));
   };
 
-  const handleAddTask = (status: 'todo' | 'in_progress' | 'done') => {
-    setModalStatus(status);
+  const handleAddTask = (columnId: string) => {
+    setModalColumnId(columnId);
     setIsModalOpen(true);
   };
+
+  // Create a stable callback that uses the ref for the column ID
+  const stableAddTaskCallback = useCallback(() => {
+    handleAddTask(firstColumnIdRef.current);
+  }, []); // Empty dependency array - this function never recreates
+
+  // Register the add task callback with the Layout - using stable callback
+  useEffect(() => {
+    setAddTaskCallback(() => stableAddTaskCallback); // Wrap in function to prevent immediate execution
+    return () => {
+      setAddTaskCallback(() => null);
+    };
+  }, [setAddTaskCallback, stableAddTaskCallback]);
 
   const handleCreateTask = (taskData: any) => {
     const now = new Date();
     const newTask: Task = {
       _id: Date.now().toString(),
       ...taskData,
-      status: modalStatus,
+      columnId: modalColumnId,
       attachments: [],
-      order: tasks.filter(t => t.status === modalStatus).length + 1,
+      order: tasks.filter(t => t.columnId === modalColumnId).length + 1,
       // Time tracking
       createdAt: now,
       updatedAt: now,
@@ -233,10 +321,16 @@ export const Dashboard: React.FC = () => {
   return (
     <div>
       <KanbanBoard 
-        tasks={filteredTasks} 
+        tasks={filteredTasks}
+        columns={columns}
+        boardName={boardName}
         onTaskMove={handleTaskMove}
         onAddTask={handleAddTask}
         onTaskClick={handleTaskClick}
+        onAddColumn={handleAddColumn}
+        onDeleteColumn={handleDeleteColumn}
+        onRenameColumn={handleRenameColumn}
+        onRenameBoardName={handleRenameBoardName}
       />
 
       {isModalOpen && (
