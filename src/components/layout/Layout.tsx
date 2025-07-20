@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Moon, Sun, Share2, Filter, Plus, ChevronDown } from 'lucide-react';
 import { useThemeStore } from '../../store/themeStore';
 import { Sidebar } from './Sidebar';
@@ -20,8 +20,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     assignedUsers?: string[];
   }>({});
   const [addTaskCallback, setAddTaskCallback] = useState<(() => void) | null>(null);
+  const addTaskCallbackRef = useRef<(() => void) | null>(null);
 
   const isDashboard = location.pathname === '/';
+
+  // Update ref when callback changes
+  useEffect(() => {
+    addTaskCallbackRef.current = addTaskCallback;
+  }, [addTaskCallback]);
 
   const handleFilterToggle = () => {
     setShowFilters(!showFilters);
@@ -51,11 +57,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     setFilters({ ...filters, assignedUsers: newUsers });
   };
 
+  // Stable function that doesn't recreate on dependency changes
   const handleAddTask = useCallback(() => {
-    if (addTaskCallback) {
-      addTaskCallback();
+    if (addTaskCallbackRef.current) {
+      addTaskCallbackRef.current();
     }
-  }, [addTaskCallback]);
+  }, []); // Empty dependency array - function never recreates
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -80,6 +87,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex items-center gap-3">
             {isDashboard && (
               <>
+                <button
+                  onClick={toggleTheme}
+                  className="p-2 rounded-lg hover:bg-accent"
+                >
+                  {theme === 'light' ? (
+                    <Moon className="w-5 h-5 text-foreground" />
+                  ) : (
+                    <Sun className="w-5 h-5 text-foreground" />
+                  )}
+                </button>
                 <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors">
                   <Share2 className="w-4 h-4" />
                   Share
@@ -164,16 +181,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </button>
               </>
             )}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg hover:bg-accent"
-            >
-              {theme === 'light' ? (
-                <Moon className="w-5 h-5 text-foreground" />
-              ) : (
-                <Sun className="w-5 h-5 text-foreground" />
-              )}
-            </button>
+            {!isDashboard && (
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-lg hover:bg-accent"
+              >
+                {theme === 'light' ? (
+                  <Moon className="w-5 h-5 text-foreground" />
+                ) : (
+                  <Sun className="w-5 h-5 text-foreground" />
+                )}
+              </button>
+            )}
           </div>
         </div>
       </header>

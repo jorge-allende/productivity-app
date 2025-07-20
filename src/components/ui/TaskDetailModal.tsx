@@ -21,11 +21,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
     urgent: 'bg-priority-urgent/10 text-priority-urgent',
   };
 
-  const statusColors = {
-    todo: 'bg-muted text-muted-foreground',
-    in_progress: 'bg-primary/10 text-primary',
-    done: 'bg-priority-low/10 text-priority-low',
-  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -66,8 +61,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
                     <span className={cn("px-2 py-1 rounded text-xs font-medium", priorityColors[task.priority])}>
                       {task.priority}
                     </span>
-                    <span className={cn("px-2 py-1 rounded text-xs font-medium", statusColors[task.status])}>
-                      {task.status.replace('_', ' ')}
+                    <span className="px-2 py-1 rounded text-xs font-medium bg-muted text-muted-foreground">
+                      {task.columnId}
                     </span>
                   </div>
                 </div>

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, MoreVertical, Check, ArrowUpDown, Calendar, Tag } from 'lucide-react';
+import { Plus, MoreVertical, Check, ArrowUpDown, Calendar, Tag, Trash2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { TaskCard } from './TaskCard';
 import { Task } from '../../types/Task';
@@ -14,11 +14,65 @@ interface KanbanColumnProps {
   onTaskClick?: (task: Task) => void;
   sortMode: string;
   onSortModeChange: (mode: string) => void;
+  canDelete?: boolean;
+  onDelete?: () => void;
+  onRename?: (newTitle: string) => void;
 }
 
-export const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, tasks, onAddTask, onTaskClick, sortMode, onSortModeChange }) => {
+export const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, tasks, onAddTask, onTaskClick, sortMode, onSortModeChange, canDelete, onDelete, onRename }) => {
   const { setNodeRef, isOver } = useDroppable({ id });
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Update editValue when title prop changes
+  useEffect(() => {
+    setEditValue(title);
+  }, [title]);
+
+  // Focus and select text when entering edit mode
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleTitleClick = () => {
+    if (onRename) {
+      setIsEditing(true);
+    }
+  };
+
+  const handleSave = () => {
+    const trimmedValue = editValue.trim();
+    if (trimmedValue && trimmedValue !== title && onRename) {
+      onRename(trimmedValue);
+    } else {
+      setEditValue(title); // Reset to original if invalid
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditValue(title);
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancel();
+    }
+  };
+
+  const handleBlur = () => {
+    handleSave();
+  };
 
   const taskIds = tasks.map(task => task._id);
 
@@ -27,7 +81,28 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, tasks, on
       <div className="bg-accent rounded-lg">
         <div className="px-3 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-medium text-foreground">{title}</h3>
+            {isEditing ? (
+              <input
+                ref={inputRef}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={handleBlur}
+                className="text-sm font-medium text-foreground bg-background border border-border rounded px-1 py-0.5 min-w-0 flex-1 max-w-[120px]"
+                maxLength={50}
+              />
+            ) : (
+              <h3 
+                className={cn(
+                  "text-sm font-medium text-foreground cursor-pointer hover:text-primary transition-colors",
+                  onRename && "hover:bg-background/50 rounded px-1 py-0.5"
+                )}
+                onClick={handleTitleClick}
+                title={onRename ? "Click to edit column name" : undefined}
+              >
+                {title}
+              </h3>
+            )}
             <span className="text-sm font-medium text-primary">
               {tasks.length}
             </span>
@@ -80,6 +155,16 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, tasks, on
                 </div>
               )}
             </div>
+            
+            {canDelete && onDelete && (
+              <button
+                onClick={onDelete}
+                className="p-1 hover:bg-background/50 rounded transition-colors group"
+                title="Delete column"
+              >
+                <Trash2 className="w-4 h-4 text-muted-foreground group-hover:text-destructive transition-colors" />
+              </button>
+            )}
             
             <button
               onClick={onAddTask}
