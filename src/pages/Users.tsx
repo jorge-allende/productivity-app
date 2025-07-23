@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation } from 'convex/react';
-import { api } from '../convex/_generated/api';
-import { Id } from '../convex/_generated/dataModel';
+import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 import { UsersHeader } from '../components/users/UsersHeader';
 import { AddUserModal } from '../components/users/AddUserModal';
 import { EditUserModal } from '../components/users/EditUserModal';

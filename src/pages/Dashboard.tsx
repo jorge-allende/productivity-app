@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
-import { api } from '../convex/_generated/api';
-import { Id } from '../convex/_generated/dataModel';
+import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
 import { TaskModal } from '../components/ui/TaskModal';
 import { TaskEditModal } from '../components/ui/TaskEditModal';

@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useQuery } from 'convex/react';
 // @ts-ignore - TypeScript depth issue with generated types
-import { api } from '../convex/_generated/api';
-import { Id } from '../convex/_generated/dataModel';
+import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 
 interface Workspace {
   id: string;
@@ -27,7 +27,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   
   // Fetch workspace data from Convex when workspace ID is set
   const convexWorkspace = useQuery(
-    // @ts-expect-error - Known TypeScript depth issue with Convex generated types
     api.workspaces.getWorkspace,
     currentWorkspace?.id ? { workspaceId: currentWorkspace.id as Id<"workspaces"> } : "skip"
   );
