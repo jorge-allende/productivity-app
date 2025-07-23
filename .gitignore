@@ -24,3 +24,6 @@ yarn-error.log*
 
 # Local testing script
 test-before-push.sh
+
+# convex generated files in src (copied for CRA compatibility)
+/src/convex/_generated

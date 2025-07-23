@@ -158,7 +158,7 @@ export const DroppableCalendarDay: React.FC<DroppableCalendarDayProps> = ({
                   priority === 'low' && "bg-priority-low",
                   priority === 'medium' && "bg-priority-medium",
                   priority === 'high' && "bg-priority-high",
-                  priority === 'urgent' && "bg-red-500",
+                  priority === 'high' && "bg-red-500",
                   isPastDay && "opacity-50"
                 )}
               />

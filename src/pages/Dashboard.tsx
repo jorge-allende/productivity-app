@@ -1,140 +1,76 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../convex/_generated/api';
+import { Id } from '../convex/_generated/dataModel';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
 import { TaskModal } from '../components/ui/TaskModal';
 import { TaskEditModal } from '../components/ui/TaskEditModal';
 import { Task } from '../types/Task';
 import { Column, DEFAULT_COLUMNS } from '../types/Column';
 import { useDashboardContext } from '../contexts/DashboardContext';
+import { useWorkspace } from '../contexts/WorkspaceContext';
+import { useAuth } from '../contexts/AuthContext';
 
-// Mock data for development
-const mockTasks: Task[] = [
-  {
-    _id: '1',
-    title: 'Design new landing page',
-    description: 'Create a modern and responsive landing page design',
-    columnId: 'todo',
-    priority: 'high' as const,
-    tagColor: '#3B82F6',
-    tagName: 'Design',
-    dueDate: new Date().toISOString(),
-    assignedUsers: ['John', 'Sarah'],
-    attachments: [],
-    order: 1,
-    // Time tracking
-    createdAt: new Date(Date.now() - 172800000), // 2 days ago
-    updatedAt: new Date(Date.now() - 86400000), // 1 day ago
-    // Enhanced collaboration
-    createdBy: 'Alex',
-    watchers: ['Alex', 'John', 'Sarah', 'Emma'],
-    comments: [
-      {
-        id: '1',
-        user: 'Alex',
-        message: 'Please make sure to follow the brand guidelines for this design.',
-        timestamp: new Date(Date.now() - 86400000),
-        isEdited: false
-      },
-      {
-        id: '2',
-        user: 'John',
-        message: 'Should we include the new testimonials section?',
-        timestamp: new Date(Date.now() - 43200000),
-        isEdited: false
-      },
-      {
-        id: '7',
-        user: 'Current User',
-        message: 'I can work on the testimonials section. Let me create a mockup first.',
-        timestamp: new Date(Date.now() - 7200000),
-        isEdited: false
-      }
-    ],
-    mentions: ['Sarah'],
-  },
-  {
-    _id: '2',
-    title: 'Implement authentication',
-    description: 'Add user authentication with JWT tokens',
-    columnId: 'in_progress',
-    priority: 'high' as const,
-    tagColor: '#10B981',
-    tagName: 'Development',
-    dueDate: new Date(Date.now() + 86400000).toISOString(),
-    assignedUsers: ['Mike'],
-    attachments: [{ name: 'auth-flow.pdf', url: '#', type: 'pdf' }],
-    order: 1,
-    // Time tracking
-    createdAt: new Date(Date.now() - 259200000), // 3 days ago
-    updatedAt: new Date(Date.now() - 3600000), // 1 hour ago
-    // Enhanced collaboration
-    createdBy: 'Sarah',
-    watchers: ['Sarah', 'Mike', 'Alex'],
-    comments: [
-      {
-        id: '3',
-        user: 'Sarah',
-        message: 'Make sure to implement proper password hashing with bcrypt and add rate limiting to prevent brute force attacks.',
-        timestamp: new Date(Date.now() - 259200000),
-        isEdited: true,
-        editedAt: new Date(Date.now() - 172800000),
-        editHistory: [
-          {
-            message: 'Make sure to implement proper password hashing and rate limiting.',
-            editedAt: new Date(Date.now() - 259200000)
-          }
-        ]
-      },
-      {
-        id: '4',
-        user: 'Mike',
-        message: 'Working on the JWT implementation now. Should be ready for review tomorrow.',
-        timestamp: new Date(Date.now() - 3600000),
-        isEdited: false
-      }
-    ],
-    mentions: [],
-  },
-  {
-    _id: '3',
-    title: 'Write documentation',
-    description: 'Document the API endpoints and usage',
-    columnId: 'done',
-    priority: 'medium' as const,
-    tagColor: '#F59E0B',
-    tagName: 'Documentation',
-    assignedUsers: ['Emma'],
-    attachments: [],
-    order: 1,
-    // Time tracking
-    createdAt: new Date(Date.now() - 432000000), // 5 days ago
-    updatedAt: new Date(Date.now() - 345600000), // 4 days ago
-    completedAt: new Date(Date.now() - 345600000), // 4 days ago
-    // Enhanced collaboration
-    createdBy: 'Alex',
-    watchers: ['Alex', 'Emma'],
-    comments: [
-      {
-        id: '5',
-        user: 'Alex',
-        message: 'Please include examples for each endpoint.',
-        timestamp: new Date(Date.now() - 432000000),
-        isEdited: false
-      },
-      {
-        id: '6',
-        user: 'Emma',
-        message: 'Documentation is complete and published!',
-        timestamp: new Date(Date.now() - 345600000),
-        isEdited: false
-      }
-    ],
-    mentions: [],
-  },
-];
+// Helper function to map Convex status to columnId
+const statusToColumnId = (status: 'todo' | 'in_progress' | 'done'): string => {
+  const statusMap: Record<string, string> = {
+    'todo': 'todo',
+    'in_progress': 'in_progress',
+    'done': 'done'
+  };
+  return statusMap[status] || 'todo';
+};
+
+// Helper function to map columnId to Convex status
+const columnIdToStatus = (columnId: string): 'todo' | 'in_progress' | 'done' => {
+  const columnMap: Record<string, 'todo' | 'in_progress' | 'done'> = {
+    'todo': 'todo',
+    'in_progress': 'in_progress',
+    'done': 'done'
+  };
+  return columnMap[columnId] || 'todo';
+};
 
 export const Dashboard: React.FC = () => {
   const { filters, setAddTaskCallback } = useDashboardContext();
-  const [tasks, setTasks] = useState(mockTasks);
+  const { currentWorkspace } = useWorkspace();
+  const { currentUser } = useAuth();
+  
+  // Convex queries and mutations
+  const convexTasks = useQuery(api.tasks.getTasks, 
+    currentWorkspace ? { workspaceId: currentWorkspace.id as Id<"workspaces"> } : "skip"
+  );
+  const createTaskMutation = useMutation(api.tasks.createTask);
+  const updateTaskMutation = useMutation(api.tasks.updateTask);
+  // const deleteTaskMutation = useMutation(api.tasks.deleteTask); // TODO: Use when delete is implemented
+  const reorderTasksMutation = useMutation(api.tasks.reorderTasks);
+  
+  // Transform Convex tasks to match UI Task interface
+  const tasks: Task[] = useMemo(() => {
+    if (!convexTasks) return [];
+    
+    return convexTasks.map((task: any): Task => ({
+      _id: task._id,
+      title: task.title,
+      description: task.description,
+      columnId: statusToColumnId(task.status),
+      priority: task.priority,
+      tagColor: task.tagColor,
+      tagName: task.tagName,
+      dueDate: task.dueDate,
+      assignedUsers: task.assignedUsers, // For now, using IDs as strings
+      attachments: task.attachments,
+      order: task.order,
+      createdAt: new Date(task.createdAt),
+      updatedAt: new Date(task.updatedAt),
+      completedAt: task.status === 'done' ? new Date(task.updatedAt) : undefined,
+      // These fields need to be fetched separately or handled differently
+      createdBy: 'User', // TODO: Fetch user name from ID
+      watchers: [], // TODO: Implement watchers
+      comments: [], // TODO: Fetch from comments table
+      mentions: [] // TODO: Implement mentions
+    }));
+  }, [convexTasks]);
   const [columns, setColumns] = useState<Column[]>(() => {
     const saved = localStorage.getItem('kanbanColumns');
     if (saved) {
@@ -191,11 +127,9 @@ export const Dashboard: React.FC = () => {
   const handleDeleteColumn = (columnId: string) => {
     if (columns.length <= 2) return;
     
-    // Move tasks from deleted column to the first column
-    const firstColumnId = columns[0].id;
-    setTasks(prev => prev.map(task => 
-      task.columnId === columnId ? { ...task, columnId: firstColumnId } : task
-    ));
+    // TODO: Move tasks from deleted column to the first column using Convex mutation
+    // const firstColumnId = columns[0].id;
+    // Need to update all tasks in the deleted column to move to first column
     
     setColumns(prev => prev.filter(col => col.id !== columnId));
   };
@@ -218,29 +152,18 @@ export const Dashboard: React.FC = () => {
     setBoardName(trimmedName);
   };
 
-  const handleTaskMove = (taskId: string, newColumnId: string, newOrder: number) => {
-    const now = new Date();
-    setTasks(prev => prev.map(task => {
-      if (task._id === taskId) {
-        const updatedTask = { 
-          ...task, 
-          columnId: newColumnId, 
-          order: newOrder,
-          updatedAt: now
-        };
-        
-        // Set completedAt when moved to done column, clear it when moved away from done
-        const doneColumn = columns.find(col => col.title.toLowerCase().includes('done'));
-        if (newColumnId === doneColumn?.id && task.columnId !== doneColumn?.id) {
-          updatedTask.completedAt = now;
-        } else if (newColumnId !== doneColumn?.id && task.columnId === doneColumn?.id) {
-          updatedTask.completedAt = undefined;
-        }
-        
-        return updatedTask;
-      }
-      return task;
-    }));
+  const handleTaskMove = async (taskId: string, newColumnId: string, newOrder: number) => {
+    if (!currentWorkspace) return;
+    
+    try {
+      await reorderTasksMutation({
+        taskId: taskId as Id<"tasks">,
+        newStatus: columnIdToStatus(newColumnId),
+        newOrder: newOrder
+      });
+    } catch (error) {
+      console.error('Failed to move task:', error);
+    }
   };
 
   const handleAddTask = (columnId: string) => {
@@ -261,25 +184,25 @@ export const Dashboard: React.FC = () => {
     };
   }, [setAddTaskCallback, stableAddTaskCallback]);
 
-  const handleCreateTask = (taskData: any) => {
-    const now = new Date();
-    const newTask: Task = {
-      _id: Date.now().toString(),
-      ...taskData,
-      columnId: modalColumnId,
-      attachments: [],
-      order: tasks.filter(t => t.columnId === modalColumnId).length + 1,
-      // Time tracking
-      createdAt: now,
-      updatedAt: now,
-      // Enhanced collaboration
-      createdBy: 'Current User', // In real app, this would come from authentication
-      watchers: ['Current User'], // Creator automatically watches the task
-      comments: [],
-      mentions: [],
-    };
-    setTasks(prev => [...prev, newTask]);
-    setIsModalOpen(false);
+  const handleCreateTask = async (taskData: any) => {
+    if (!currentWorkspace || !currentUser) return;
+    
+    try {
+      await createTaskMutation({
+        workspaceId: currentWorkspace.id as Id<"workspaces">,
+        title: taskData.title,
+        description: taskData.description || '',
+        status: columnIdToStatus(modalColumnId),
+        priority: taskData.priority || 'medium',
+        tagColor: taskData.tagColor || '#3B82F6',
+        tagName: taskData.tagName || 'General',
+        dueDate: taskData.dueDate,
+        assignedUsers: taskData.assignedUsers || [],
+      });
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Failed to create task:', error);
+    }
   };
 
   const handleTaskClick = (task: Task) => {
@@ -287,15 +210,29 @@ export const Dashboard: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
-  const handleTaskUpdate = (updatedTask: Task, commentOnly?: boolean) => {
-    setTasks(prev => prev.map(task => 
-      task._id === updatedTask._id ? { ...updatedTask, updatedAt: new Date() } : task
-    ));
+  const handleTaskUpdate = async (updatedTask: Task, commentOnly?: boolean) => {
+    if (!currentWorkspace) return;
     
-    // Only close modal if it's not a comment-only update
-    if (!commentOnly) {
-      setIsEditModalOpen(false);
-      setSelectedTask(null);
+    try {
+      // If it's not comment-only, update the task
+      if (!commentOnly) {
+        await updateTaskMutation({
+          id: updatedTask._id as Id<"tasks">,
+          title: updatedTask.title,
+          description: updatedTask.description,
+          status: columnIdToStatus(updatedTask.columnId),
+          priority: updatedTask.priority as 'low' | 'medium' | 'high',
+          tagColor: updatedTask.tagColor,
+          tagName: updatedTask.tagName,
+          dueDate: updatedTask.dueDate,
+          assignedUsers: updatedTask.assignedUsers as Id<"users">[],
+        });
+        setIsEditModalOpen(false);
+        setSelectedTask(null);
+      }
+      // TODO: Handle comment updates when comment API is integrated
+    } catch (error) {
+      console.error('Failed to update task:', error);
     }
   };
 
@@ -318,6 +255,27 @@ export const Dashboard: React.FC = () => {
     return true;
   });
 
+  // Show loading state while fetching data
+  if (!currentWorkspace) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-gray-500 dark:text-gray-400">
+          Please select a workspace to view tasks
+        </div>
+      </div>
+    );
+  }
+  
+  if (convexTasks === undefined) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-gray-500 dark:text-gray-400">
+          Loading tasks...
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div>
       <KanbanBoard 

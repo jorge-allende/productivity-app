@@ -1,4 +1,7 @@
 import React, { useState, useMemo } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../convex/_generated/api';
+import { Id } from '../convex/_generated/dataModel';
 import { ChevronLeft, ChevronRight, CalendarDays, List } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, startOfWeek, endOfWeek, isBefore, startOfDay, endOfDay, isWithinInterval, isToday, addDays } from 'date-fns';
 import {
@@ -20,209 +23,22 @@ import { Task } from '../types/Task';
 import { TaskCard } from '../components/kanban/TaskCard';
 import { DroppableCalendarDay } from '../components/calendar/DroppableCalendarDay';
 import { TaskEditModal } from '../components/ui/TaskEditModal';
+import { useWorkspace } from '../contexts/WorkspaceContext';
 
 type ViewMode = 'month' | 'agenda';
 
-const mockTasks: Task[] = [
-  {
-    _id: '1',
-    title: 'Design new landing page',
-    description: 'Create a modern and responsive landing page design',
-    columnId: 'todo',
-    priority: 'high',
-    tagColor: '#3B82F6',
-    tagName: 'Design',
-    dueDate: new Date().toISOString(),
-    assignedUsers: ['John', 'Sarah'],
-    attachments: [],
-    order: 1,
-    // Time tracking
-    createdAt: new Date(Date.now() - 172800000), // 2 days ago
-    updatedAt: new Date(Date.now() - 86400000), // 1 day ago
-    // Enhanced collaboration
-    createdBy: 'Alex',
-    watchers: ['Alex', 'John', 'Sarah'],
-    comments: [],
-    mentions: [],
-  },
-  {
-    _id: '2',
-    title: 'Implement authentication',
-    description: 'Add user authentication with JWT tokens',
-    columnId: 'in_progress',
-    priority: 'high',
-    tagColor: '#10B981',
-    tagName: 'Development',
-    dueDate: new Date(Date.now() + 86400000).toISOString(),
-    assignedUsers: ['Mike'],
-    attachments: [{ name: 'auth-flow.pdf', url: '#', type: 'pdf' }],
-    order: 1,
-    // Time tracking
-    createdAt: new Date(Date.now() - 259200000), // 3 days ago
-    updatedAt: new Date(Date.now() - 3600000), // 1 hour ago
-    // Enhanced collaboration
-    createdBy: 'Sarah',
-    watchers: ['Sarah', 'Mike'],
-    comments: [],
-    mentions: [],
-  },
-  {
-    _id: '3',
-    title: 'Review Q3 marketing strategy',
-    description: 'Analyze performance metrics and plan for next quarter',
-    columnId: 'todo',
-    priority: 'medium',
-    tagColor: '#F59E0B',
-    tagName: 'Marketing',
-    dueDate: new Date(Date.now() + 172800000).toISOString(), // 2 days from now
-    assignedUsers: ['Emma', 'Alex'],
-    attachments: [],
-    order: 2,
-    createdAt: new Date(Date.now() - 432000000), // 5 days ago
-    updatedAt: new Date(Date.now() - 172800000), // 2 days ago
-    createdBy: 'Emma',
-    watchers: ['Emma', 'Alex', 'John'],
-    comments: [],
-    mentions: [],
-  },
-  {
-    _id: '4',
-    title: 'Fix critical production bug',
-    description: 'Memory leak in payment processing module',
-    columnId: 'in_progress',
-    priority: 'urgent',
-    tagColor: '#EF4444',
-    tagName: 'Bug',
-    dueDate: new Date(Date.now() + 3600000 * 2).toISOString(), // 2 hours from now
-    assignedUsers: ['David'],
-    attachments: [{ name: 'error-logs.txt', url: '#', type: 'text' }],
-    order: 2,
-    createdAt: new Date(Date.now() - 3600000), // 1 hour ago
-    updatedAt: new Date(Date.now() - 1800000), // 30 mins ago
-    createdBy: 'System',
-    watchers: ['David', 'Mike', 'Sarah'],
-    comments: [],
-    mentions: ['David'],
-  },
-  {
-    _id: '5',
-    title: 'Prepare investor presentation',
-    description: 'Q3 results and future roadmap',
-    columnId: 'todo',
-    priority: 'high',
-    tagColor: '#8B5CF6',
-    tagName: 'Business',
-    dueDate: new Date(Date.now() + 604800000).toISOString(), // 1 week from now
-    assignedUsers: ['John', 'Emma', 'CEO'],
-    attachments: [{ name: 'financial-report.xlsx', url: '#', type: 'excel' }],
-    order: 3,
-    createdAt: new Date(Date.now() - 86400000), // 1 day ago
-    updatedAt: new Date(Date.now() - 43200000), // 12 hours ago
-    createdBy: 'CEO',
-    watchers: ['CEO', 'John', 'Emma', 'CFO'],
-    comments: [],
-    mentions: [],
-  },
-  {
-    _id: '6',
-    title: 'Code review: New feature branch',
-    description: 'Review pull request for user dashboard improvements',
-    columnId: 'review',
-    priority: 'medium',
-    tagColor: '#10B981',
-    tagName: 'Development',
-    dueDate: new Date(Date.now() + 86400000 * 3).toISOString(), // 3 days from now
-    assignedUsers: ['Sarah', 'Mike'],
-    attachments: [],
-    order: 1,
-    createdAt: new Date(Date.now() - 172800000), // 2 days ago
-    updatedAt: new Date(Date.now() - 3600000), // 1 hour ago
-    createdBy: 'David',
-    watchers: ['David', 'Sarah', 'Mike'],
-    comments: [],
-    mentions: [],
-  },
-  {
-    _id: '7',
-    title: 'Update documentation',
-    description: 'Add API endpoints documentation for v2.0',
-    columnId: 'todo',
-    priority: 'low',
-    tagColor: '#6B7280',
-    tagName: 'Documentation',
-    dueDate: new Date(Date.now() + 86400000 * 10).toISOString(), // 10 days from now
-    assignedUsers: ['Alex'],
-    attachments: [],
-    order: 4,
-    createdAt: new Date(Date.now() - 604800000), // 1 week ago
-    updatedAt: new Date(Date.now() - 259200000), // 3 days ago
-    createdBy: 'Mike',
-    watchers: ['Mike', 'Alex'],
-    comments: [],
-    mentions: [],
-  },
-  {
-    _id: '8',
-    title: 'Team standup meeting',
-    description: 'Daily sync on project progress',
-    columnId: 'done',
-    priority: 'low',
-    tagColor: '#059669',
-    tagName: 'Meeting',
-    dueDate: new Date(new Date().setHours(10, 0, 0, 0)).toISOString(), // Today at 10 AM
-    assignedUsers: ['Team'],
-    attachments: [],
-    order: 1,
-    createdAt: new Date(Date.now() - 86400000), // 1 day ago
-    updatedAt: new Date(Date.now() - 3600000), // 1 hour ago
-    completedAt: new Date(Date.now() - 3600000), // Completed 1 hour ago
-    createdBy: 'John',
-    watchers: ['John', 'Sarah', 'Mike', 'David', 'Emma', 'Alex'],
-    comments: [],
-    mentions: [],
-  },
-  {
-    _id: '9',
-    title: 'Submit quarterly report',
-    description: 'Financial report submission deadline',
-    columnId: 'todo',
-    priority: 'urgent',
-    tagColor: '#EF4444',
-    tagName: 'Urgent',
-    dueDate: new Date(Date.now() - 172800000).toISOString(), // 2 days ago - OVERDUE
-    assignedUsers: ['Emma'],
-    attachments: [],
-    order: 5,
-    createdAt: new Date(Date.now() - 604800000), // 1 week ago
-    updatedAt: new Date(Date.now() - 86400000), // 1 day ago
-    createdBy: 'CEO',
-    watchers: ['CEO', 'Emma', 'CFO'],
-    comments: [],
-    mentions: ['Emma'],
-  },
-  {
-    _id: '10',
-    title: 'Database backup completed',
-    description: 'Weekly automated backup process',
-    columnId: 'done',
-    priority: 'medium',
-    tagColor: '#10B981',
-    tagName: 'DevOps',
-    dueDate: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-    assignedUsers: ['System'],
-    attachments: [],
-    order: 2,
-    createdAt: new Date(Date.now() - 172800000), // 2 days ago
-    updatedAt: new Date(Date.now() - 86400000), // 1 day ago
-    completedAt: new Date(Date.now() - 86400000), // Completed yesterday
-    createdBy: 'System',
-    watchers: ['Mike', 'David'],
-    comments: [],
-    mentions: [],
-  },
-];
+// Helper function to map Convex status to columnId
+const statusToColumnId = (status: 'todo' | 'in_progress' | 'done'): string => {
+  const statusMap: Record<string, string> = {
+    'todo': 'todo',
+    'in_progress': 'in_progress',
+    'done': 'done'
+  };
+  return statusMap[status] || 'todo';
+};
 
 export const Calendar: React.FC = () => {
+  const { currentWorkspace } = useWorkspace();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedTasks, setSelectedTasks] = useState<Task[]>([]);
@@ -236,7 +52,39 @@ export const Calendar: React.FC = () => {
     customDateRange: undefined,
     hideCompleted: false
   });
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
+  
+  // Convex queries and mutations
+  const convexTasks = useQuery(api.tasks.getTasks, 
+    currentWorkspace ? { workspaceId: currentWorkspace.id as Id<"workspaces"> } : "skip"
+  );
+  const updateTaskMutation = useMutation(api.tasks.updateTask);
+  
+  // Transform Convex tasks to match UI Task interface
+  const tasks: Task[] = useMemo(() => {
+    if (!convexTasks) return [];
+    
+    return convexTasks.map((task: any): Task => ({
+      _id: task._id,
+      title: task.title,
+      description: task.description,
+      columnId: statusToColumnId(task.status),
+      priority: task.priority,
+      tagColor: task.tagColor,
+      tagName: task.tagName,
+      dueDate: task.dueDate,
+      assignedUsers: task.assignedUsers, // For now, using IDs as strings
+      attachments: task.attachments,
+      order: task.order,
+      createdAt: new Date(task.createdAt),
+      updatedAt: new Date(task.updatedAt),
+      completedAt: task.status === 'done' ? new Date(task.updatedAt) : undefined,
+      // These fields need to be fetched separately or handled differently
+      createdBy: 'User', // TODO: Fetch user name from ID
+      watchers: [], // TODO: Implement watchers
+      comments: [], // TODO: Fetch from comments table
+      mentions: [] // TODO: Implement mentions
+    }));
+  }, [convexTasks]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -374,7 +222,7 @@ export const Calendar: React.FC = () => {
     // We can use this later if we need to show more visual feedback
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
 
@@ -388,48 +236,33 @@ export const Calendar: React.FC = () => {
     if (droppedDayString.startsWith('day-')) {
       const droppedDate = new Date(droppedDayString.replace('day-', ''));
       
-      // Update the task's due date
-      setTasks(prevTasks => 
-        prevTasks.map(task => 
-          task._id === activeTask._id 
-            ? { ...task, dueDate: droppedDate.toISOString() }
-            : task
-        )
-      );
+      // Update the task's due date using Convex mutation
+      if (currentWorkspace) {
+        try {
+          await updateTaskMutation({
+            id: activeTask._id as Id<"tasks">,
+            dueDate: droppedDate.toISOString()
+          });
+        } catch (error) {
+          console.error('Failed to update task due date:', error);
+        }
+      }
     }
   };
 
   const handleCreateTask = (newTask: {
     title: string;
     description: string;
-    priority: 'low' | 'medium' | 'high' | 'urgent';
+    priority: 'low' | 'medium' | 'high';
     tagColor: string;
     tagName: string;
     dueDate?: string;
     assignedUsers: string[];
     attachments: Array<{ name: string; url: string; type: string }>;
   }) => {
-    const task: Task = {
-      _id: `task-${Date.now()}`,
-      title: newTask.title,
-      description: newTask.description,
-      columnId: 'todo',
-      priority: newTask.priority,
-      tagColor: newTask.tagColor,
-      tagName: newTask.tagName,
-      dueDate: newTask.dueDate,
-      assignedUsers: newTask.assignedUsers,
-      attachments: newTask.attachments,
-      order: tasks.length + 1,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      createdBy: 'Current User',
-      watchers: ['Current User'],
-      comments: [],
-      mentions: [],
-    };
-
-    setTasks(prevTasks => [...prevTasks, task]);
+    // Task creation is handled in Dashboard.tsx
+    // This function is not used in Calendar view
+    console.warn('Task creation should be handled in Dashboard view');
   };
 
   const activeTask = activeId ? tasks.find(task => task._id === activeId) : null;
@@ -439,19 +272,53 @@ export const Calendar: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
-  const handleTaskUpdate = (updatedTask: Task, commentOnly?: boolean) => {
-    setTasks(prevTasks => 
-      prevTasks.map(task => 
-        task._id === updatedTask._id ? { ...updatedTask, updatedAt: new Date() } : task
-      )
-    );
+  const handleTaskUpdate = async (updatedTask: Task, commentOnly?: boolean) => {
+    if (!currentWorkspace) return;
     
-    // Only close modal if it's not a comment-only update
-    if (!commentOnly) {
-      setIsEditModalOpen(false);
-      setSelectedTask(null);
+    try {
+      // If it's not comment-only, update the task
+      if (!commentOnly) {
+        await updateTaskMutation({
+          id: updatedTask._id as Id<"tasks">,
+          title: updatedTask.title,
+          description: updatedTask.description,
+          status: updatedTask.columnId === 'todo' ? 'todo' : 
+                  updatedTask.columnId === 'in_progress' ? 'in_progress' : 'done',
+          priority: updatedTask.priority as 'low' | 'medium' | 'high',
+          tagColor: updatedTask.tagColor,
+          tagName: updatedTask.tagName,
+          dueDate: updatedTask.dueDate,
+          assignedUsers: updatedTask.assignedUsers as Id<"users">[],
+        });
+        setIsEditModalOpen(false);
+        setSelectedTask(null);
+      }
+      // TODO: Handle comment updates when comment API is integrated
+    } catch (error) {
+      console.error('Failed to update task:', error);
     }
   };
+
+  // Show loading state while fetching data
+  if (!currentWorkspace) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-gray-500 dark:text-gray-400">
+          Please select a workspace to view tasks
+        </div>
+      </div>
+    );
+  }
+  
+  if (convexTasks === undefined) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-gray-500 dark:text-gray-400">
+          Loading tasks...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <DndContext
