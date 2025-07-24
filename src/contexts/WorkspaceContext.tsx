@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useQuery } from 'convex/react';
-// @ts-ignore - TypeScript depth issue with generated types
-import { api } from '../../convex/_generated/api';
-import { Id } from '../../convex/_generated/dataModel';
+import type { Id } from '../convex/_generated/dataModel';
+
+// Import api with require to avoid TypeScript depth issues
+const { api } = require('../convex/_generated/api');
 
 interface Workspace {
   id: string;

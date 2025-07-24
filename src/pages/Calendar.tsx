@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
-import { Id } from '../../convex/_generated/dataModel';
+import { api } from '../convex/_generated/api';
+import { Id } from '../convex/_generated/dataModel';
 import { ChevronLeft, ChevronRight, CalendarDays, List } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, startOfWeek, endOfWeek, isBefore, startOfDay, endOfDay, isWithinInterval, isToday, addDays } from 'date-fns';
 import {
