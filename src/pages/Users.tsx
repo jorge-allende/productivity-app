@@ -1,13 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation } from 'convex/react';
-import { api } from '../convex/_generated/api';
-import { Id } from '../convex/_generated/dataModel';
+import type { Id } from '../convex/_generated/dataModel';
 import { UsersHeader } from '../components/users/UsersHeader';
 import { AddUserModal } from '../components/users/AddUserModal';
 import { EditUserModal } from '../components/users/EditUserModal';
 import { UserPlus, Search, Edit2, Trash2, Shield, Building2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
+
+// Import api with require to avoid TypeScript depth issues
+const { api } = require('../convex/_generated/api');
 
 interface User {
   id: string;

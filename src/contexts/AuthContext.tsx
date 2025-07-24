@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useMutation, useQuery } from 'convex/react';
-import { api } from '../convex/_generated/api';
 import authService from '../services/auth.service';
 import { AuthUser, AuthState, LoginCredentials, SignupCredentials, AuthError } from '../types/auth.types';
 import { useWorkspace } from './WorkspaceContext';
+
+// Import api with require to avoid TypeScript depth issues
+const { api } = require('../convex/_generated/api');
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;

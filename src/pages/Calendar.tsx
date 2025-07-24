@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation } from 'convex/react';
-import { api } from '../convex/_generated/api';
-import { Id } from '../convex/_generated/dataModel';
+import type { Id } from '../convex/_generated/dataModel';
 import { ChevronLeft, ChevronRight, CalendarDays, List } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, startOfWeek, endOfWeek, isBefore, startOfDay, endOfDay, isWithinInterval, isToday, addDays } from 'date-fns';
 import {
@@ -24,6 +23,9 @@ import { TaskCard } from '../components/kanban/TaskCard';
 import { DroppableCalendarDay } from '../components/calendar/DroppableCalendarDay';
 import { TaskEditModal } from '../components/ui/TaskEditModal';
 import { useWorkspace } from '../contexts/WorkspaceContext';
+
+// Import api with require to avoid TypeScript depth issues
+const { api } = require('../convex/_generated/api');
 
 type ViewMode = 'month' | 'agenda';
 

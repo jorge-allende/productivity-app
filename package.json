@@ -37,7 +37,9 @@
     "eject": "react-scripts eject",
     "test:ci": "npm test -- --coverage --watchAll=false --testTimeout=10000",
     "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
+    "pretypecheck": "mkdir -p src/convex && cp -r convex/_generated src/convex/",
     "typecheck": "tsc --noEmit",
+    "posttypecheck": "rm -rf src/convex/_generated",
     "ci-local": "npm run typecheck && npm run lint && npm run test:ci && npm run build"
   },
   "eslintConfig": {

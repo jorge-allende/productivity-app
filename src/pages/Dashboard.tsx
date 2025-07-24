@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
-import { api } from '../convex/_generated/api';
-import { Id } from '../convex/_generated/dataModel';
+import type { Id } from '../convex/_generated/dataModel';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
 import { TaskModal } from '../components/ui/TaskModal';
 import { TaskEditModal } from '../components/ui/TaskEditModal';
@@ -10,6 +9,9 @@ import { Column, DEFAULT_COLUMNS } from '../types/Column';
 import { useDashboardContext } from '../contexts/DashboardContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useAuth } from '../contexts/AuthContext';
+
+// Import api with require to avoid TypeScript depth issues
+const { api } = require('../convex/_generated/api');
 
 // Helper function to map Convex status to columnId
 const statusToColumnId = (status: 'todo' | 'in_progress' | 'done'): string => {

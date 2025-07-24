@@ -43,7 +43,7 @@ jobs:
       - name: TypeScript type check
         run: |
           echo "Running TypeScript check..."
-          npx tsc --noEmit || {
+          npm run typecheck || {
             EXIT_CODE=$?
             echo "::error::TypeScript check failed with exit code $EXIT_CODE"
             exit $EXIT_CODE
