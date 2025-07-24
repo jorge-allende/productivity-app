@@ -72,31 +72,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           // Try to sync with Convex
           try {
-            const userId = await syncUser({
+            await syncUser({
               auth0Id: auth0User.auth0Id,
               email: auth0User.email,
               name: auth0User.name || auth0User.email,
               picture: auth0User.picture
             });
             
-            if (!userId) {
-              // User needs invitation
-              setAuthState({
-                isAuthenticated: false,
-                isLoading: false,
-                user: null,
-                error: { error: 'NO_INVITATION', code: 'NO_INVITATION', message: 'You need an invitation to join a workspace' }
-              });
-              authService.logout();
-            } else {
-              setAuthState(prev => ({
-                ...prev,
-                isAuthenticated: true,
-                isLoading: false
-              }));
-            }
-          } catch (error) {
+            // syncUser now always creates a workspace for new users
+            setAuthState(prev => ({
+              ...prev,
+              isAuthenticated: true,
+              isLoading: false
+            }));
+          } catch (error: any) {
             console.error('Failed to sync user:', error);
+            
+            // Determine the type of error and provide appropriate message
+            let errorMessage = 'Failed to create user account';
+            let errorCode = 'SYNC_FAILED';
+            
+            if (error.message?.includes('NetworkError') || error.message?.includes('Failed to fetch')) {
+              errorMessage = 'Network error. Please check your connection and try again.';
+              errorCode = 'NETWORK_ERROR';
+            } else if (error.message?.includes('workspace')) {
+              errorMessage = 'Failed to create workspace. Please try again.';
+              errorCode = 'WORKSPACE_ERROR';
+            }
+            
+            setAuthState({
+              isAuthenticated: false,
+              isLoading: false,
+              user: null,
+              error: { 
+                error: errorCode, 
+                code: errorCode, 
+                message: errorMessage,
+                errorDescription: errorMessage 
+              }
+            });
           }
         } else {
           // Try to parse hash if coming from Auth0 redirect
@@ -126,37 +140,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               }));
             } else {
               // Try normal sync
-              const userId = await syncUser({
+              await syncUser({
                 auth0Id: auth0User.auth0Id,
                 email: auth0User.email,
                 name: auth0User.name || auth0User.email,
                 picture: auth0User.picture
               });
               
-              if (!userId) {
-                // User needs invitation
-                setAuthState({
-                  isAuthenticated: false,
-                  isLoading: false,
-                  user: null,
-                  error: { error: 'NO_INVITATION', code: 'NO_INVITATION', message: 'You need an invitation to join a workspace' }
-                });
-                authService.logout();
-              } else {
-                setAuthState(prev => ({
-                  ...prev,
-                  isAuthenticated: true,
-                  isLoading: false
-                }));
-              }
+              // syncUser now always creates a workspace for new users
+              setAuthState(prev => ({
+                ...prev,
+                isAuthenticated: true,
+                isLoading: false
+              }));
             }
-          } catch {
-            // No valid session
+          } catch (error: any) {
+            // No valid session or error during authentication
+            console.error('Auth initialization error:', error);
+            
+            // Only set error state if there's an actual error (not just no session)
+            const hasError = error && error.error !== 'login_required';
+            
             setAuthState({
               isAuthenticated: false,
               isLoading: false,
               user: null,
-              error: null
+              error: hasError ? error : null
             });
           }
         }
@@ -185,10 +194,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const urlParams = new URLSearchParams(window.location.search);
       const inviteCode = urlParams.get('invite');
       
-      let userId;
       if (inviteCode) {
         // Join via invitation
-        userId = await joinWorkspaceViaInvitation({
+        await joinWorkspaceViaInvitation({
           auth0Id: auth0User.auth0Id,
           email: auth0User.email,
           name: auth0User.name || auth0User.email,
@@ -197,7 +205,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
       } else {
         // Try normal sync
-        userId = await syncUser({
+        await syncUser({
           auth0Id: auth0User.auth0Id,
           email: auth0User.email,
           name: auth0User.name || auth0User.email,
@@ -205,31 +213,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
       }
       
-      if (!userId) {
-        // User needs invitation
-        setAuthState({
-          isAuthenticated: false,
-          isLoading: false,
-          user: null,
-          error: { error: 'NO_INVITATION', code: 'NO_INVITATION', message: 'You need an invitation to join a workspace' }
-        });
-        authService.logout();
-        throw new Error('You need an invitation to join a workspace');
-      }
-      
+      // syncUser now always creates a workspace for new users
       setAuthState(prev => ({
         ...prev,
         isAuthenticated: true,
         isLoading: false
       }));
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Login error:', error);
+      
+      // Enhance error message based on error type
+      let enhancedError = error;
+      
+      if (error.message?.includes('NetworkError') || error.message?.includes('Failed to fetch')) {
+        enhancedError = {
+          ...error,
+          errorDescription: 'Network error. Please check your connection and try again.'
+        };
+      }
+      
       setAuthState({
         isAuthenticated: false,
         isLoading: false,
         user: null,
-        error: error as AuthError
+        error: enhancedError as AuthError
       });
-      throw error;
+      throw enhancedError;
     }
   }, [syncUser, joinWorkspaceViaInvitation]);
 

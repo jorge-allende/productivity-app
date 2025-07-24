@@ -155,9 +155,65 @@ class AuthService {
   };
 
   private formatError = (err: any): AuthError => {
+    // Map common Auth0 error codes to user-friendly messages
+    const errorMessages: { [key: string]: string } = {
+      'wrong_email_or_password': 'Invalid email or password. Please try again.',
+      'invalid_password': 'Password doesn\'t meet security requirements.',
+      'user_exists': 'An account with this email already exists. Please sign in instead.',
+      'invalid_signup': 'An account with this email already exists. Please sign in instead.',
+      'too_many_attempts': 'Too many failed attempts. Please try again later.',
+      'lock.network': 'Network error. Please check your connection and try again.',
+      'lock.unauthorized': 'Access denied. Please check your credentials.',
+      'lock.invalid_email_password': 'Invalid email or password. Please try again.',
+      'invalid_grant': 'Invalid credentials. Please check your email and password.',
+      'access_denied': 'Access denied. You may not have permission to access this resource.',
+      'unauthorized': 'Your session has expired. Please sign in again.',
+      'password_change_required': 'Password change required. Please reset your password.',
+      'password_leaked': 'This password has been compromised in a data breach. Please choose a different password.',
+      'requires_verification': 'Please verify your email address before signing in.',
+      'invalid_connection': 'Authentication configuration error. Please contact support.',
+      'no_connection': 'Authentication service unavailable. Please try again later.',
+      'timeout': 'Request timed out. Please check your connection and try again.',
+      'user_blocked': 'Your account has been blocked. Please contact support.',
+      'email_verified': 'Email verification required. Please check your inbox.',
+      'bad.email': 'Please enter a valid email address.',
+      'bad.password': 'Password is required.',
+      'bad.connection': 'Connection error. Please try again.',
+      // Catch specific error descriptions
+      'The user already exists.': 'An account with this email already exists. Please sign in instead.',
+      'Wrong email or password.': 'Invalid email or password. Please try again.',
+      'Invalid sign up': 'Unable to create account. Please check your information and try again.'
+    };
+
+    // Extract error code and description
+    const errorCode = err.code || err.error || err.name || 'unknown_error';
+    const errorDescription = err.description || err.error_description || err.message || '';
+    
+    // Check if we have a user-friendly message for this error
+    let friendlyMessage = errorMessages[errorCode] || errorMessages[errorDescription];
+    
+    // If no specific mapping found, provide a more helpful generic message
+    if (!friendlyMessage) {
+      // Check if the error description contains known patterns
+      for (const [key, value] of Object.entries(errorMessages)) {
+        if (errorDescription.toLowerCase().includes(key.toLowerCase())) {
+          friendlyMessage = value;
+          break;
+        }
+      }
+    }
+    
+    // Log the original error for debugging (without sensitive data)
+    console.error('[Auth Error]', {
+      code: errorCode,
+      description: errorDescription,
+      statusCode: err.statusCode,
+      timestamp: new Date().toISOString()
+    });
+
     return {
-      error: err.code || err.error || 'unknown_error',
-      errorDescription: err.description || err.error_description || err.message || 'An unknown error occurred',
+      error: errorCode,
+      errorDescription: friendlyMessage || errorDescription || 'An error occurred during authentication. Please try again.',
       statusCode: err.statusCode
     };
   };

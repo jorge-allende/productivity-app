@@ -45,62 +45,46 @@ export const syncUser = mutation({
       return existingUser._id;
     }
     
-    // Check if this is the first user in any workspace
-    const userCount = await ctx.db.query("users").collect();
+    // For new signups, always create a new workspace
+    // This allows every user to have their own workspace
+    console.log("Creating new user and workspace for:", args.email);
     
-    if (userCount.length === 0) {
-      // First user ever - create user without workspace first
-      const userId = await ctx.db.insert("users", {
-        auth0Id: args.auth0Id,
-        email: args.email,
-        name: args.name,
-        // workspaceId will be set after workspace creation
-        role: "Admin",
-        avatar: args.picture,
-        joinedAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
+    // Create user without workspace first
+    const userId = await ctx.db.insert("users", {
+      auth0Id: args.auth0Id,
+      email: args.email,
+      name: args.name,
+      // workspaceId will be set after workspace creation
+      role: "Admin", // User is admin of their own workspace
+      avatar: args.picture,
+      joinedAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+    });
+    
+    console.log("Created user with ID:", userId);
+    
+    // Create workspace with the user as creator
+    let workspaceId;
+    try {
+      workspaceId = await ctx.db.insert("workspaces", {
+        name: `${args.name}'s Workspace`,
+        createdBy: userId,
+        plan: "free",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       });
-      
-      // Log to debug the ID issue
-      console.log("Created user with ID:", userId);
-      console.log("Auth0 ID:", args.auth0Id);
-      
-      // Verify the user was created successfully
-      const createdUser = await ctx.db.get(userId);
-      if (!createdUser) {
-        throw new Error("Failed to create user");
-      }
-      
-      // Extra validation to ensure we're using the right ID
-      if (userId === args.auth0Id) {
-        throw new Error("CRITICAL: userId is same as auth0Id - this should not happen!");
-      }
-      
-      // Create workspace with the user as creator
-      let workspaceId;
-      try {
-        workspaceId = await ctx.db.insert("workspaces", {
-          name: `${args.name}'s Workspace`,
-          createdBy: userId,
-          plan: "free",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
-        console.log("Successfully created workspace:", workspaceId);
-      } catch (error) {
-        console.error("Failed to create workspace. userId:", userId, "error:", error);
-        throw error;
-      }
-      
-      // Update user with workspace ID
-      await ctx.db.patch(userId, { workspaceId });
-      
-      return userId;
+      console.log("Successfully created workspace:", workspaceId);
+    } catch (error) {
+      console.error("Failed to create workspace. userId:", userId, "error:", error);
+      // Clean up the user if workspace creation fails
+      await ctx.db.delete(userId);
+      throw error;
     }
     
-    // Not first user - they need an invitation
-    // For now, return null to indicate they need invitation
-    return null;
+    // Update user with workspace ID
+    await ctx.db.patch(userId, { workspaceId });
+    
+    return userId;
   },
 });
 
