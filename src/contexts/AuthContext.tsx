@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           // Try to sync with Convex
           try {
-            const userId = await syncUser({
+            await syncUser({
               auth0Id: auth0User.auth0Id,
               email: auth0User.email,
               name: auth0User.name || auth0User.email,
@@ -140,7 +140,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               }));
             } else {
               // Try normal sync
-              const userId = await syncUser({
+              await syncUser({
                 auth0Id: auth0User.auth0Id,
                 email: auth0User.email,
                 name: auth0User.name || auth0User.email,
@@ -194,10 +194,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const urlParams = new URLSearchParams(window.location.search);
       const inviteCode = urlParams.get('invite');
       
-      let userId;
       if (inviteCode) {
         // Join via invitation
-        userId = await joinWorkspaceViaInvitation({
+        await joinWorkspaceViaInvitation({
           auth0Id: auth0User.auth0Id,
           email: auth0User.email,
           name: auth0User.name || auth0User.email,
@@ -206,7 +205,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
       } else {
         // Try normal sync
-        userId = await syncUser({
+        await syncUser({
           auth0Id: auth0User.auth0Id,
           email: auth0User.email,
           name: auth0User.name || auth0User.email,
