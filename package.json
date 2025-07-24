@@ -14,8 +14,9 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@types/react-router-dom": "^5.3.3",
+    "auth0-js": "^9.28.0",
     "clsx": "^2.1.1",
-    "convex": "^1.25.2",
+    "convex": "^1.25.4",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.525.0",
     "react": "^19.1.0",
@@ -29,12 +30,16 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "prebuild": "mkdir -p src/convex && cp -r convex/_generated src/convex/",
     "build": "react-scripts build",
+    "postbuild": "rm -rf src/convex/_generated",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "test:ci": "npm test -- --coverage --watchAll=false --testTimeout=10000",
     "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
+    "pretypecheck": "mkdir -p src/convex && cp -r convex/_generated src/convex/",
     "typecheck": "tsc --noEmit",
+    "posttypecheck": "rm -rf src/convex/_generated",
     "ci-local": "npm run typecheck && npm run lint && npm run test:ci && npm run build"
   },
   "eslintConfig": {
@@ -56,6 +61,7 @@
     ]
   },
   "devDependencies": {
+    "@types/auth0-js": "^9.21.6",
     "@types/node": "^24.0.13",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",

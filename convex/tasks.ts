@@ -2,13 +2,37 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 export const getTasks = query({
-  handler: async (ctx) => {
-    return await ctx.db.query("tasks").order("asc").collect();
+  args: {
+    workspaceId: v.id("workspaces"),
+  },
+  handler: async (ctx, args) => {
+    // TODO: Add authentication check
+    // const user = await ctx.auth.getUserIdentity();
+    // if (!user) throw new Error("Not authenticated");
+    
+    // Verify user has access to this workspace
+    // const membership = await ctx.db
+    //   .query("users")
+    //   .filter(q => 
+    //     q.and(
+    //       q.eq(q.field("email"), user.email),
+    //       q.eq(q.field("workspaceId"), args.workspaceId)
+    //     )
+    //   )
+    //   .first();
+    // if (!membership) throw new Error("Access denied");
+    
+    return await ctx.db
+      .query("tasks")
+      .filter(q => q.eq(q.field("workspaceId"), args.workspaceId))
+      .order("asc")
+      .collect();
   },
 });
 
 export const createTask = mutation({
   args: {
+    workspaceId: v.id("workspaces"),
     title: v.string(),
     description: v.string(),
     status: v.union(v.literal("todo"), v.literal("in_progress"), v.literal("done")),
@@ -16,10 +40,20 @@ export const createTask = mutation({
     tagColor: v.string(),
     tagName: v.string(),
     dueDate: v.optional(v.string()),
-    assignedUsers: v.array(v.string()),
+    assignedUsers: v.array(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const tasks = await ctx.db.query("tasks").filter(q => q.eq(q.field("status"), args.status)).collect();
+    // TODO: Add authentication check
+    
+    const tasks = await ctx.db
+      .query("tasks")
+      .filter(q => 
+        q.and(
+          q.eq(q.field("workspaceId"), args.workspaceId),
+          q.eq(q.field("status"), args.status)
+        )
+      )
+      .collect();
     const maxOrder = Math.max(...tasks.map(t => t.order || 0), 0);
     
     return await ctx.db.insert("tasks", {
@@ -42,10 +76,12 @@ export const updateTask = mutation({
     tagColor: v.optional(v.string()),
     tagName: v.optional(v.string()),
     dueDate: v.optional(v.string()),
-    assignedUsers: v.optional(v.array(v.string())),
+    assignedUsers: v.optional(v.array(v.id("users"))),
     order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    // TODO: Add authentication check and verify task belongs to user's workspace
+    
     const { id, ...updates } = args;
     await ctx.db.patch(id, {
       ...updates,
@@ -55,8 +91,12 @@ export const updateTask = mutation({
 });
 
 export const deleteTask = mutation({
-  args: { id: v.id("tasks") },
+  args: { 
+    id: v.id("tasks"),
+  },
   handler: async (ctx, args) => {
+    // TODO: Add authentication check and verify task belongs to user's workspace
+    
     await ctx.db.delete(args.id);
   },
 });
@@ -68,12 +108,23 @@ export const reorderTasks = mutation({
     newOrder: v.number(),
   },
   handler: async (ctx, args) => {
+    // TODO: Add authentication check and verify task belongs to user's workspace
+    
     const { taskId, newStatus, newOrder } = args;
+    
+    // Get the task to find its workspace
+    const task = await ctx.db.get(taskId);
+    if (!task) throw new Error("Task not found");
     
     // Get all tasks in the target column
     const tasksInColumn = await ctx.db
       .query("tasks")
-      .filter(q => q.eq(q.field("status"), newStatus))
+      .filter(q => 
+        q.and(
+          q.eq(q.field("workspaceId"), task.workspaceId),
+          q.eq(q.field("status"), newStatus)
+        )
+      )
       .order("asc")
       .collect();
     
@@ -85,10 +136,10 @@ export const reorderTasks = mutation({
     });
     
     // Reorder other tasks
-    for (const task of tasksInColumn) {
-      if (task._id !== taskId && task.order >= newOrder) {
-        await ctx.db.patch(task._id, {
-          order: task.order + 1,
+    for (const otherTask of tasksInColumn) {
+      if (otherTask._id !== taskId && otherTask.order >= newOrder) {
+        await ctx.db.patch(otherTask._id, {
+          order: otherTask.order + 1,
         });
       }
     }

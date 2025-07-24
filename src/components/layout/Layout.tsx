@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar';
 import { useLocation } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { DashboardProvider } from '../../contexts/DashboardContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { theme, toggleTheme } = useThemeStore();
+  const { currentWorkspace } = useWorkspace();
   const location = useLocation();
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<{
@@ -79,9 +81,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="h-full px-6 flex items-center justify-between max-w-[1920px] mx-auto">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-semibold text-sm">P</span>
+              <span className="text-primary-foreground font-semibold text-sm">{currentWorkspace?.name?.[0]?.toUpperCase() || 'W'}</span>
             </div>
-            <h1 className="text-lg font-semibold text-foreground">Productivity UI</h1>
+            <div>
+              <h1 className="text-lg font-semibold text-foreground">{currentWorkspace?.name || 'Select Workspace'}</h1>
+              <p className="text-xs text-muted-foreground">
+                {currentWorkspace?.plan === 'free' ? 'Free Plan' : currentWorkspace?.plan === 'pro' ? 'Pro Plan' : currentWorkspace?.plan === 'enterprise' ? 'Enterprise' : ''}
+              </p>
+            </div>
           </div>
           
           <div className="flex items-center gap-3">

@@ -28,19 +28,57 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Debug - Environment and Files
+        run: |
+          echo "=== Environment Info ==="
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Current directory: $(pwd)"
+          echo ""
+          echo "=== Test file contents ==="
+          cat src/App.test.tsx
+          echo ""
+          echo "=== Running individual checks ==="
+
       - name: TypeScript type check
-        run: npx tsc --noEmit
+        run: |
+          echo "Running TypeScript check..."
+          npm run typecheck || {
+            EXIT_CODE=$?
+            echo "::error::TypeScript check failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          }
 
       - name: Run ESLint
-        run: npx eslint src --ext .ts,.tsx --max-warnings 0
+        run: |
+          echo "Running ESLint..."
+          npx eslint src --ext .ts,.tsx --max-warnings 0 || {
+            EXIT_CODE=$?
+            echo "::error::ESLint failed with exit code $EXIT_CODE"
+            echo "Running ESLint on test file specifically for debugging:"
+            npx eslint src/App.test.tsx --debug || true
+            exit $EXIT_CODE
+          }
 
       - name: Run tests with coverage
-        run: npm test -- --coverage --watchAll=false --testTimeout=10000 --passWithNoTests
+        run: |
+          echo "Running tests..."
+          npm test -- --coverage --watchAll=false --testTimeout=10000 --passWithNoTests --verbose || {
+            EXIT_CODE=$?
+            echo "::error::Tests failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          }
         env:
           CI: true
 
       - name: Test build process
-        run: npm run build
+        run: |
+          echo "Running build..."
+          npm run build || {
+            EXIT_CODE=$?
+            echo "::error::Build failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          }
 
       - name: Check bundle size
         run: |

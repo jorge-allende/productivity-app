@@ -8,7 +8,7 @@ interface TaskModalProps {
   onSave: (task: {
     title: string;
     description: string;
-    priority: 'low' | 'medium' | 'high' | 'urgent';
+    priority: 'low' | 'medium' | 'high';
     tagColor: string;
     tagName: string;
     dueDate?: string;

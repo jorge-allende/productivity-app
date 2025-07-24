@@ -6,7 +6,7 @@ interface TaskFormProps {
   onSave: (task: {
     title: string;
     description: string;
-    priority: 'low' | 'medium' | 'high' | 'urgent';
+    priority: 'low' | 'medium' | 'high';
     tagColor: string;
     tagName: string;
     dueDate?: string;
@@ -21,7 +21,7 @@ interface TaskFormProps {
 export const TaskForm: React.FC<TaskFormProps> = ({ onSave, onCancel, initialDueDate, mode = 'modal' }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [tagName, setTagName] = useState('');
   const [tagColor, setTagColor] = useState('#3B82F6');
   const [dueDate, setDueDate] = useState(initialDueDate ? initialDueDate.toISOString().split('T')[0] : '');
@@ -131,7 +131,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSave, onCancel, initialDue
           Priority
         </label>
         <div className="flex gap-2">
-          {(['low', 'medium', 'high', 'urgent'] as const).map((p) => (
+          {(['low', 'medium', 'high'] as const).map((p) => (
             <button
               key={p}
               type="button"
