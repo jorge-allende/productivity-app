@@ -33,6 +33,33 @@ export const SignupForm: React.FC = () => {
     return null;
   };
 
+  const getPasswordStrength = (pass: string): { strength: number; label: string; color: string } => {
+    if (!pass) return { strength: 0, label: '', color: '' };
+    
+    let strength = 0;
+    
+    // Length check
+    if (pass.length >= 8) strength += 25;
+    if (pass.length >= 12) strength += 10;
+    
+    // Character variety
+    if (/[a-z]/.test(pass)) strength += 15;
+    if (/[A-Z]/.test(pass)) strength += 15;
+    if (/[0-9]/.test(pass)) strength += 15;
+    if (/[^A-Za-z0-9]/.test(pass)) strength += 20; // Special characters
+    
+    // Determine label and color
+    if (strength < 30) {
+      return { strength, label: 'Weak', color: 'text-red-500' };
+    } else if (strength < 50) {
+      return { strength, label: 'Fair', color: 'text-orange-500' };
+    } else if (strength < 70) {
+      return { strength, label: 'Good', color: 'text-yellow-500' };
+    } else {
+      return { strength, label: 'Strong', color: 'text-green-500' };
+    }
+  };
+
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -194,9 +221,39 @@ export const SignupForm: React.FC = () => {
                   required
                 />
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                At least 8 characters with uppercase, lowercase, and numbers
-              </p>
+              {password && (
+                <>
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-muted-foreground">Password strength:</span>
+                      <span className={`text-xs font-medium ${getPasswordStrength(password).color}`}>
+                        {getPasswordStrength(password).label}
+                      </span>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-1.5">
+                      <div 
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                          getPasswordStrength(password).strength < 30 ? 'bg-red-500' :
+                          getPasswordStrength(password).strength < 50 ? 'bg-orange-500' :
+                          getPasswordStrength(password).strength < 70 ? 'bg-yellow-500' : 'bg-green-500'
+                        }`}
+                        style={{ width: `${getPasswordStrength(password).strength}%` }}
+                      />
+                    </div>
+                  </div>
+                  {validatePassword(password) && (
+                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {validatePassword(password)}
+                    </p>
+                  )}
+                </>
+              )}
+              {!password && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  At least 8 characters with uppercase, lowercase, and numbers
+                </p>
+              )}
             </div>
 
             <div>
@@ -214,6 +271,18 @@ export const SignupForm: React.FC = () => {
                   required
                 />
               </div>
+              {confirmPassword && password && confirmPassword !== password && (
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Passwords do not match
+                </p>
+              )}
+              {confirmPassword && password && confirmPassword === password && (
+                <p className="text-xs text-green-500 mt-1 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  Passwords match
+                </p>
+              )}
             </div>
 
             {(error || authError) && (

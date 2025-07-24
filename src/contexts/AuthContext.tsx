@@ -85,13 +85,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               isAuthenticated: true,
               isLoading: false
             }));
-          } catch (error) {
+          } catch (error: any) {
             console.error('Failed to sync user:', error);
+            
+            // Determine the type of error and provide appropriate message
+            let errorMessage = 'Failed to create user account';
+            let errorCode = 'SYNC_FAILED';
+            
+            if (error.message?.includes('NetworkError') || error.message?.includes('Failed to fetch')) {
+              errorMessage = 'Network error. Please check your connection and try again.';
+              errorCode = 'NETWORK_ERROR';
+            } else if (error.message?.includes('workspace')) {
+              errorMessage = 'Failed to create workspace. Please try again.';
+              errorCode = 'WORKSPACE_ERROR';
+            }
+            
             setAuthState({
               isAuthenticated: false,
               isLoading: false,
               user: null,
-              error: { error: 'SYNC_FAILED', code: 'SYNC_FAILED', message: 'Failed to create user account' }
+              error: { 
+                error: errorCode, 
+                code: errorCode, 
+                message: errorMessage,
+                errorDescription: errorMessage 
+              }
             });
           }
         } else {
@@ -136,13 +154,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 isLoading: false
               }));
             }
-          } catch {
-            // No valid session
+          } catch (error: any) {
+            // No valid session or error during authentication
+            console.error('Auth initialization error:', error);
+            
+            // Only set error state if there's an actual error (not just no session)
+            const hasError = error && error.error !== 'login_required';
+            
             setAuthState({
               isAuthenticated: false,
               isLoading: false,
               user: null,
-              error: null
+              error: hasError ? error : null
             });
           }
         }
@@ -197,14 +220,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isAuthenticated: true,
         isLoading: false
       }));
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Login error:', error);
+      
+      // Enhance error message based on error type
+      let enhancedError = error;
+      
+      if (error.message?.includes('NetworkError') || error.message?.includes('Failed to fetch')) {
+        enhancedError = {
+          ...error,
+          errorDescription: 'Network error. Please check your connection and try again.'
+        };
+      }
+      
       setAuthState({
         isAuthenticated: false,
         isLoading: false,
         user: null,
-        error: error as AuthError
+        error: enhancedError as AuthError
       });
-      throw error;
+      throw enhancedError;
     }
   }, [syncUser, joinWorkspaceViaInvitation]);
 
