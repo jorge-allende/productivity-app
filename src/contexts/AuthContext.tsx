@@ -79,24 +79,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               picture: auth0User.picture
             });
             
-            if (!userId) {
-              // User needs invitation
-              setAuthState({
-                isAuthenticated: false,
-                isLoading: false,
-                user: null,
-                error: { error: 'NO_INVITATION', code: 'NO_INVITATION', message: 'You need an invitation to join a workspace' }
-              });
-              authService.logout();
-            } else {
-              setAuthState(prev => ({
-                ...prev,
-                isAuthenticated: true,
-                isLoading: false
-              }));
-            }
+            // syncUser now always creates a workspace for new users
+            setAuthState(prev => ({
+              ...prev,
+              isAuthenticated: true,
+              isLoading: false
+            }));
           } catch (error) {
             console.error('Failed to sync user:', error);
+            setAuthState({
+              isAuthenticated: false,
+              isLoading: false,
+              user: null,
+              error: { error: 'SYNC_FAILED', code: 'SYNC_FAILED', message: 'Failed to create user account' }
+            });
           }
         } else {
           // Try to parse hash if coming from Auth0 redirect
@@ -133,22 +129,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 picture: auth0User.picture
               });
               
-              if (!userId) {
-                // User needs invitation
-                setAuthState({
-                  isAuthenticated: false,
-                  isLoading: false,
-                  user: null,
-                  error: { error: 'NO_INVITATION', code: 'NO_INVITATION', message: 'You need an invitation to join a workspace' }
-                });
-                authService.logout();
-              } else {
-                setAuthState(prev => ({
-                  ...prev,
-                  isAuthenticated: true,
-                  isLoading: false
-                }));
-              }
+              // syncUser now always creates a workspace for new users
+              setAuthState(prev => ({
+                ...prev,
+                isAuthenticated: true,
+                isLoading: false
+              }));
             }
           } catch {
             // No valid session
@@ -205,18 +191,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
       }
       
-      if (!userId) {
-        // User needs invitation
-        setAuthState({
-          isAuthenticated: false,
-          isLoading: false,
-          user: null,
-          error: { error: 'NO_INVITATION', code: 'NO_INVITATION', message: 'You need an invitation to join a workspace' }
-        });
-        authService.logout();
-        throw new Error('You need an invitation to join a workspace');
-      }
-      
+      // syncUser now always creates a workspace for new users
       setAuthState(prev => ({
         ...prev,
         isAuthenticated: true,
