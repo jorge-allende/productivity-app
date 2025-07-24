@@ -46,12 +46,12 @@ export const syncUser = mutation({
     const userCount = await ctx.db.query("users").collect();
     
     if (userCount.length === 0) {
-      // First user ever - create a temporary user ID
-      const tempUserId = await ctx.db.insert("users", {
+      // First user ever - create user without workspace first
+      const userId = await ctx.db.insert("users", {
         auth0Id: args.auth0Id,
         email: args.email,
         name: args.name,
-        workspaceId: "" as any, // Temporary, will update
+        // workspaceId will be set after workspace creation
         role: "Admin",
         avatar: args.picture,
         joinedAt: new Date().toISOString(),
@@ -61,16 +61,16 @@ export const syncUser = mutation({
       // Create workspace with the user as creator
       const workspaceId = await ctx.db.insert("workspaces", {
         name: `${args.name}'s Workspace`,
-        createdBy: tempUserId,
+        createdBy: userId,
         plan: "free",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
       
-      // Update user with correct workspace ID
-      await ctx.db.patch(tempUserId, { workspaceId });
+      // Update user with workspace ID
+      await ctx.db.patch(userId, { workspaceId });
       
-      return tempUserId;
+      return userId;
     }
     
     // Not first user - they need an invitation

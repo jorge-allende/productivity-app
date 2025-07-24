@@ -49,15 +49,13 @@ export default defineSchema({
     auth0Id: v.string(),
     email: v.string(),
     name: v.string(),
-    workspaceId: v.id("workspaces"),
+    workspaceId: v.optional(v.id("workspaces")),
     role: v.union(v.literal("Admin"), v.literal("Manager")),
     avatar: v.optional(v.string()),
     joinedAt: v.string(),
     lastLoginAt: v.optional(v.string()),
   }).index("by_auth0Id", ["auth0Id"])
-    .index("by_email", ["email"])
-    .index("by_workspace", ["workspaceId"])
-    .index("by_workspace_role", ["workspaceId", "role"]),
+    .index("by_email", ["email"]),
 
   invitations: defineTable({
     workspaceId: v.id("workspaces"),

@@ -37,10 +37,9 @@ export const updateWorkspace = mutation({
 export const getWorkspaceMembers = query({
   args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
-    const members = await ctx.db
-      .query("users")
-      .withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId))
-      .collect();
+    // Since workspaceId is optional, we need to filter manually
+    const allUsers = await ctx.db.query("users").collect();
+    const members = allUsers.filter(user => user.workspaceId === args.workspaceId);
     
     return members;
   },
@@ -61,12 +60,10 @@ export const removeUserFromWorkspace = mutation({
     }
     
     // Don't allow removing the last admin
-    const admins = await ctx.db
-      .query("users")
-      .withIndex("by_workspace_role", q => 
-        q.eq("workspaceId", args.workspaceId).eq("role", "Admin")
-      )
-      .collect();
+    const allUsers = await ctx.db.query("users").collect();
+    const admins = allUsers.filter(user => 
+      user.workspaceId === args.workspaceId && user.role === "Admin"
+    );
       
     const userToRemove = await ctx.db.get(args.userId);
     if (userToRemove?.role === "Admin" && admins.length === 1) {
@@ -97,12 +94,10 @@ export const updateUserRole = mutation({
     
     // Don't allow removing the last admin
     if (args.newRole === "Manager") {
-      const admins = await ctx.db
-        .query("users")
-        .withIndex("by_workspace_role", q => 
-          q.eq("workspaceId", args.workspaceId).eq("role", "Admin")
-        )
-        .collect();
+      const allUsers = await ctx.db.query("users").collect();
+      const admins = allUsers.filter(user => 
+        user.workspaceId === args.workspaceId && user.role === "Admin"
+      );
         
       if (admins.length === 1 && admins[0]._id === args.userId) {
         throw new Error("Cannot remove admin role from the last admin");

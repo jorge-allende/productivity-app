@@ -8,11 +8,9 @@ export const getUsersByWorkspace = query({
     searchTerm: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let usersQuery = ctx.db
-      .query("users")
-      .withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId));
-    
-    const users = await usersQuery.collect();
+    // Since workspaceId is optional, we need to filter manually
+    const allUsers = await ctx.db.query("users").collect();
+    const users = allUsers.filter(user => user.workspaceId === args.workspaceId);
     
     // Filter by search term if provided
     if (args.searchTerm) {
