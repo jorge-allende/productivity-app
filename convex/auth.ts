@@ -25,6 +25,8 @@ export const syncUser = mutation({
     picture: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    console.log("syncUser called with:", { auth0Id: args.auth0Id, email: args.email, name: args.name });
+    
     // Check if user exists
     const existingUser = await ctx.db
       .query("users")
@@ -32,6 +34,7 @@ export const syncUser = mutation({
       .first();
       
     if (existingUser) {
+      console.log("Found existing user:", existingUser._id);
       // Update user info
       await ctx.db.patch(existingUser._id, {
         name: args.name,
@@ -58,14 +61,36 @@ export const syncUser = mutation({
         lastLoginAt: new Date().toISOString(),
       });
       
+      // Log to debug the ID issue
+      console.log("Created user with ID:", userId);
+      console.log("Auth0 ID:", args.auth0Id);
+      
+      // Verify the user was created successfully
+      const createdUser = await ctx.db.get(userId);
+      if (!createdUser) {
+        throw new Error("Failed to create user");
+      }
+      
+      // Extra validation to ensure we're using the right ID
+      if (userId === args.auth0Id) {
+        throw new Error("CRITICAL: userId is same as auth0Id - this should not happen!");
+      }
+      
       // Create workspace with the user as creator
-      const workspaceId = await ctx.db.insert("workspaces", {
-        name: `${args.name}'s Workspace`,
-        createdBy: userId,
-        plan: "free",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+      let workspaceId;
+      try {
+        workspaceId = await ctx.db.insert("workspaces", {
+          name: `${args.name}'s Workspace`,
+          createdBy: userId,
+          plan: "free",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        console.log("Successfully created workspace:", workspaceId);
+      } catch (error) {
+        console.error("Failed to create workspace. userId:", userId, "error:", error);
+        throw error;
+      }
       
       // Update user with workspace ID
       await ctx.db.patch(userId, { workspaceId });
