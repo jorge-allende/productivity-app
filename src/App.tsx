@@ -38,6 +38,32 @@ const AuthRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
   return element;
 };
 
+// Auth callback component for handling Auth0 redirects
+const AuthCallback: React.FC = () => {
+  const { isLoading, isAuthenticated, error } = useAuth();
+  
+  React.useEffect(() => {
+    // The AuthContext will handle parsing the hash automatically
+    if (!isLoading && isAuthenticated) {
+      // Redirect to dashboard after successful auth
+      window.location.href = '/dashboard';
+    }
+  }, [isLoading, isAuthenticated]);
+  
+  if (error) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-muted-foreground">Processing authentication...</p>
+      </div>
+    </div>
+  );
+};
+
 function AppRoutes() {
   return (
     <Routes>
@@ -47,6 +73,7 @@ function AppRoutes() {
       {/* Auth Routes */}
       <Route path="/login" element={<AuthRoute element={<LoginForm />} />} />
       <Route path="/signup" element={<AuthRoute element={<SignupForm />} />} />
+      <Route path="/callback" element={<AuthCallback />} />
       
       {/* Protected App Routes */}
       <Route path="/dashboard" element={
