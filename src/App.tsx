@@ -83,13 +83,13 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <WorkspaceProvider>
+    <WorkspaceProvider>
+      <AuthProvider>
         <Router>
           <AppRoutes />
         </Router>
-      </WorkspaceProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </WorkspaceProvider>
   );
 }
 
