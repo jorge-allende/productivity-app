@@ -17,6 +17,9 @@ class AuthService {
       scope: 'openid profile email offline_access',
       audience: process.env.REACT_APP_AUTH0_AUDIENCE || `https://${process.env.REACT_APP_AUTH0_DOMAIN}/userinfo`
     });
+    
+    // Load tokens from localStorage on initialization
+    this.loadSession();
   }
 
   public login = (credentials: LoginCredentials): Promise<AuthTokens> => {
@@ -120,11 +123,17 @@ class AuthService {
   };
 
   public logout = (): void => {
-    // Clear tokens
+    // Clear tokens from memory
     this.accessToken = null;
     this.idToken = null;
     this.refreshToken = null;
     this.expiresAt = 0;
+    
+    // Clear tokens from localStorage
+    localStorage.removeItem('auth_access_token');
+    localStorage.removeItem('auth_id_token');
+    localStorage.removeItem('auth_refresh_token');
+    localStorage.removeItem('auth_expires_at');
 
     // Logout from Auth0
     this.auth0.logout({
@@ -153,6 +162,14 @@ class AuthService {
     this.idToken = authResult.idToken;
     this.refreshToken = authResult.refreshToken;
     this.expiresAt = expiresAt;
+    
+    // Persist tokens to localStorage
+    localStorage.setItem('auth_access_token', authResult.accessToken);
+    localStorage.setItem('auth_id_token', authResult.idToken);
+    if (authResult.refreshToken) {
+      localStorage.setItem('auth_refresh_token', authResult.refreshToken);
+    }
+    localStorage.setItem('auth_expires_at', String(expiresAt));
   };
 
   private formatError = (err: any): AuthError => {
@@ -241,6 +258,20 @@ class AuthService {
         }
       });
     });
+  };
+  
+  private loadSession = (): void => {
+    const accessToken = localStorage.getItem('auth_access_token');
+    const idToken = localStorage.getItem('auth_id_token');
+    const refreshToken = localStorage.getItem('auth_refresh_token');
+    const expiresAt = localStorage.getItem('auth_expires_at');
+    
+    if (accessToken && idToken && expiresAt) {
+      this.accessToken = accessToken;
+      this.idToken = idToken;
+      this.refreshToken = refreshToken;
+      this.expiresAt = parseInt(expiresAt, 10);
+    }
   };
 }
 
