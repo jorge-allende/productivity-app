@@ -132,7 +132,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSave, onCancel, initialDue
     setHue(h);
     setSaturation(s);
     setValue(v);
-  }, []);
+  }, [tagColor]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
