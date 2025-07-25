@@ -16,7 +16,7 @@ export const Sidebar: React.FC = () => {
   const { currentUser, logout } = useAuth();
 
   const navigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Calendar', href: '/calendar', icon: Calendar },
   ];
 
@@ -28,7 +28,11 @@ export const Sidebar: React.FC = () => {
       ]
     : [];
 
-  const isActive = (href: string) => location.pathname === href;
+  const isActive = (href: string) => {
+    // Handle both '/' and '/dashboard' as the same route
+    if (href === '/dashboard' && location.pathname === '/') return true;
+    return location.pathname === href;
+  };
 
   return (
     <aside className="fixed left-0 top-14 h-[calc(100vh-3.5rem)] w-64 bg-background border-r border-border flex flex-col">
@@ -41,12 +45,13 @@ export const Sidebar: React.FC = () => {
           return (
             <button
               key={item.name}
-              onClick={() => navigate(item.href)}
+              onClick={() => !active && navigate(item.href)}
+              disabled={active}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                 active
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  ? "bg-accent text-accent-foreground cursor-default"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer"
               )}
             >
               <Icon className="w-4 h-4" />
@@ -66,12 +71,13 @@ export const Sidebar: React.FC = () => {
             return (
               <button
                 key={item.name}
-                onClick={() => navigate(item.href)}
+                onClick={() => !active && navigate(item.href)}
+                disabled={active}
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                   active
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    ? "bg-accent text-accent-foreground cursor-default"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer"
                 )}
               >
                 <Icon className="w-4 h-4" />

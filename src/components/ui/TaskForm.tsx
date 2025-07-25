@@ -1,6 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { X, Upload, FileText, Image, File } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useQuery } from 'convex/react';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
+import type { Id } from '../../convex/_generated/dataModel';
+
+// Import api with require to avoid TypeScript depth issues
+const { api } = require('../../convex/_generated/api');
 
 interface TaskFormProps {
   onSave: (task: {
@@ -19,6 +25,7 @@ interface TaskFormProps {
 }
 
 export const TaskForm: React.FC<TaskFormProps> = ({ onSave, onCancel, initialDueDate, mode = 'modal' }) => {
+  const { currentWorkspace } = useWorkspace();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
@@ -28,6 +35,89 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSave, onCancel, initialDue
   const [assignedUsers, setAssignedUsers] = useState<string[]>([]);
   const [userInput, setUserInput] = useState('');
   const [attachments, setAttachments] = useState<Array<{ name: string; url: string; type: string }>>([]);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [hue, setHue] = useState(217);
+  const [saturation, setSaturation] = useState(91);
+  const [value, setValue] = useState(97);
+  const [isDragging, setIsDragging] = useState(false);
+  const colorAreaRef = useRef<HTMLDivElement>(null);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Fetch workspace users
+  const workspaceUsers = useQuery(api.users.getUsersByWorkspace, 
+    currentWorkspace ? { 
+      workspaceId: currentWorkspace.id as Id<"workspaces">,
+      searchTerm: userInput || undefined
+    } : "skip"
+  );
+  
+  // Filter users for suggestions
+  const filteredUsers = useMemo(() => {
+    if (!workspaceUsers || !userInput.trim()) return [];
+    
+    return workspaceUsers
+      .filter((user: any) => 
+        !assignedUsers.includes(user.name) &&
+        (user.name.toLowerCase().includes(userInput.toLowerCase()) ||
+         user.email.toLowerCase().includes(userInput.toLowerCase()))
+      )
+      .slice(0, 5); // Show max 5 suggestions
+  }, [workspaceUsers, userInput, assignedUsers]);
+
+  // Convert hex to HSV
+  const hexToHsv = (hex: string) => {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const diff = max - min;
+    
+    let h = 0;
+    const s = max === 0 ? 0 : diff / max;
+    const v = max;
+
+    if (diff !== 0) {
+      switch (max) {
+        case r: h = (g - b) / diff + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / diff + 2; break;
+        case b: h = (r - g) / diff + 4; break;
+      }
+      h /= 6;
+    }
+
+    return [Math.round(h * 360), Math.round(s * 100), Math.round(v * 100)];
+  };
+
+  // Convert HSV to hex
+  const hsvToHex = (h: number, s: number, v: number) => {
+    h /= 360;
+    s /= 100;
+    v /= 100;
+
+    const c = v * s;
+    const x = c * (1 - Math.abs((h * 6) % 2 - 1));
+    const m = v - c;
+
+    let r = 0, g = 0, b = 0;
+
+    if (h < 1/6) { r = c; g = x; b = 0; }
+    else if (h < 2/6) { r = x; g = c; b = 0; }
+    else if (h < 3/6) { r = 0; g = c; b = x; }
+    else if (h < 4/6) { r = 0; g = x; b = c; }
+    else if (h < 5/6) { r = x; g = 0; b = c; }
+    else { r = c; g = 0; b = x; }
+
+    const toHex = (n: number) => {
+      const hex = Math.round((n + m) * 255).toString(16);
+      return hex.length === 1 ? '0' + hex : hex;
+    };
+
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  };
 
   // Reset form when initialDueDate changes
   useEffect(() => {
@@ -35,6 +125,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSave, onCancel, initialDue
       setDueDate(initialDueDate.toISOString().split('T')[0]);
     }
   }, [initialDueDate]);
+
+  // Initialize HSV from default color
+  useEffect(() => {
+    const [h, s, v] = hexToHsv(tagColor);
+    setHue(h);
+    setSaturation(s);
+    setValue(v);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,10 +150,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSave, onCancel, initialDue
     }
   };
 
-  const addUser = () => {
-    if (userInput.trim() && !assignedUsers.includes(userInput)) {
-      setAssignedUsers([...assignedUsers, userInput]);
+  const addUser = (user?: string) => {
+    const userToAdd = user || userInput.trim();
+    if (userToAdd && !assignedUsers.includes(userToAdd)) {
+      setAssignedUsers([...assignedUsers, userToAdd]);
       setUserInput('');
+      setShowUserDropdown(false);
     }
   };
 
@@ -82,6 +182,85 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSave, onCancel, initialDue
     newAttachments.splice(index, 1);
     setAttachments(newAttachments);
   };
+
+  // Handle color area click and drag
+  const handleColorAreaInteraction = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = colorAreaRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const newSaturation = Math.round((x / rect.width) * 100);
+    const newValue = Math.round(100 - (y / rect.height) * 100);
+
+    setSaturation(Math.max(0, Math.min(100, newSaturation)));
+    setValue(Math.max(0, Math.min(100, newValue)));
+    setTagColor(hsvToHex(hue, Math.max(0, Math.min(100, newSaturation)), Math.max(0, Math.min(100, newValue))));
+  };
+
+  const handleColorAreaMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    setIsDragging(true);
+    handleColorAreaInteraction(e);
+  };
+
+  const handleColorAreaMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      handleColorAreaInteraction(e);
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Handle hue slider change
+  const handleHueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newHue = parseInt(e.target.value);
+    setHue(newHue);
+    setTagColor(hsvToHex(newHue, saturation, value));
+  };
+
+  // Click outside to close color picker
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(event.target as Node)) {
+        setShowColorPicker(false);
+      }
+    };
+
+    if (showColorPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showColorPicker]);
+
+  // Click outside to close user dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setShowUserDropdown(false);
+      }
+    };
+
+    if (showUserDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserDropdown]);
+
+  // Global mouse up handler for dragging
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => document.removeEventListener('mouseup', handleMouseUp);
+    }
+  }, [isDragging]);
 
   const getFileIcon = (type: string) => {
     if (type.startsWith('image/')) return <Image className="w-4 h-4" />;
@@ -139,9 +318,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSave, onCancel, initialDue
               className={cn(
                 "px-3 py-1 rounded-lg text-sm font-medium transition-colors capitalize",
                 priority === p
-                  ? p === 'low' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                  ? p === 'low' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
                     : p === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-                    : p === 'high' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300'
+                    : p === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
                     : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
                   : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
               )}
@@ -166,7 +345,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSave, onCancel, initialDue
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
-        <div className="flex-1">
+        <div ref={colorPickerRef} className="flex-1">
           <label className={labelClass}>
             Color
           </label>
@@ -179,14 +358,67 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSave, onCancel, initialDue
                   const hex = e.target.value;
                   if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
                     setTagColor(hex);
+                    const [h, s, v] = hexToHsv(hex);
+                    setHue(h);
+                    setSaturation(s);
+                    setValue(v);
                   }
                 }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 placeholder="#000000"
               />
             </div>
-            <div className="w-10 h-10 flex-shrink-0 border border-gray-300 dark:border-gray-600 rounded-lg" style={{ backgroundColor: tagColor }}></div>
+            <button
+              type="button"
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              className="w-10 h-10 flex-shrink-0 border border-gray-300 dark:border-gray-600 rounded-lg hover:scale-105 transition-transform flex items-center justify-center"
+              style={{ backgroundColor: tagColor }}
+            >
+            </button>
           </div>
+          {showColorPicker && (
+            <div className="absolute z-50 mt-2 p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 shadow-xl">
+              <div className="space-y-4">
+                {/* Color Area */}
+                <div 
+                  ref={colorAreaRef}
+                  className="relative w-48 h-48 rounded-lg cursor-crosshair border border-gray-200 dark:border-gray-600"
+                  style={{
+                    background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, hsl(${hue}, 100%, 50%))`
+                  }}
+                  onMouseDown={handleColorAreaMouseDown}
+                  onMouseMove={handleColorAreaMouseMove}
+                >
+                  {/* Color cursor */}
+                  <div
+                    className="absolute w-4 h-4 border-2 border-white rounded-full pointer-events-none shadow-lg"
+                    style={{
+                      left: `${(saturation / 100) * 100}%`,
+                      top: `${100 - (value / 100) * 100}%`,
+                      transform: 'translate(-50%, -50%)'
+                    }}
+                  />
+                </div>
+                
+                {/* Hue Slider */}
+                <div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="360"
+                    value={hue}
+                    onChange={handleHueChange}
+                    className="w-full h-3 rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, 
+                        hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), 
+                        hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))`
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -207,20 +439,56 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSave, onCancel, initialDue
           <label className={labelClass}>
             Assigned Users
           </label>
-          <div className="flex gap-2">
-            <div className="flex-1">
+          <div className="flex gap-2" ref={userDropdownRef}>
+            <div className="flex-1 relative">
               <input
                 type="text"
                 value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addUser())}
+                onChange={(e) => {
+                  setUserInput(e.target.value);
+                  setShowUserDropdown(e.target.value.trim().length > 0);
+                }}
+                onFocus={() => {
+                  if (userInput.trim().length > 0 && filteredUsers.length > 0) {
+                    setShowUserDropdown(true);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addUser();
+                  } else if (e.key === 'Escape') {
+                    setShowUserDropdown(false);
+                  }
+                }}
                 placeholder="Add user"
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
+              
+              {/* User Dropdown */}
+              {showUserDropdown && filteredUsers.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-auto">
+                  {filteredUsers.map((user: any) => (
+                    <button
+                      key={user._id}
+                      type="button"
+                      onClick={() => addUser(user.name)}
+                      className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        {user.name}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {user.email}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <button
               type="button"
-              onClick={addUser}
+              onClick={() => addUser()}
               className="w-10 h-10 flex-shrink-0 bg-foreground text-background hover:bg-foreground/90 rounded-lg transition-colors font-semibold text-sm flex items-center justify-center"
             >
               Add

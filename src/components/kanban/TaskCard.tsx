@@ -46,17 +46,30 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onTaskClick }) => {
         isDragging && "opacity-50"
       )}
     >
-      {/* Tag */}
-      <div className="flex items-center gap-2 mb-2">
-        {task.tagName && (
-          <>
-            <span
-              className="inline-block w-2 h-2 rounded-full"
-              style={{ backgroundColor: task.tagColor }}
-            />
-            <span className="text-xs text-muted-foreground font-medium">{task.tagName}</span>
-          </>
-        )}
+      {/* Tag and Priority */}
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2">
+          {task.tagName && (
+            <>
+              <span
+                className="inline-block w-2 h-2 rounded-full"
+                style={{ backgroundColor: task.tagColor }}
+              />
+              <span className="text-xs text-muted-foreground font-medium">{task.tagName}</span>
+            </>
+          )}
+        </div>
+        {/* Priority badge */}
+        <span
+          className={cn(
+            "px-2 py-0.5 rounded text-xs font-medium capitalize",
+            task.priority === 'low' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+              : task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
+              : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+          )}
+        >
+          {task.priority}
+        </span>
       </div>
 
       {/* Title */}

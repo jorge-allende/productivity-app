@@ -625,15 +625,15 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, t
                   type="button"
                   onClick={() => setPriority(p)}
                   className={cn(
-                    "px-3 py-1 rounded-lg text-sm font-medium transition-colors",
+                    "px-3 py-1 rounded-lg text-sm font-medium transition-colors capitalize",
                     priority === p
-                      ? p === 'low' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                      ? p === 'low' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
                         : p === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
                         : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
                       : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
                   )}
                 >
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                  {p}
                 </button>
               ))}
             </div>
