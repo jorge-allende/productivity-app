@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Moon, Sun, Share2, Filter, Plus, ChevronDown } from 'lucide-react';
 import { useThemeStore } from '../../store/themeStore';
 import { Sidebar } from './Sidebar';
@@ -6,9 +6,19 @@ import { useLocation } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { DashboardProvider } from '../../contexts/DashboardContext';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { useQuery } from 'convex/react';
+import type { Id } from '../../convex/_generated/dataModel';
+
+// Import api with require to avoid TypeScript depth issues
+const { api } = require('../../convex/_generated/api');
 
 interface LayoutProps {
   children: React.ReactNode;
+}
+
+interface UserInfo {
+  name: string;
+  email: string;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
@@ -24,7 +34,23 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [addTaskCallback, setAddTaskCallback] = useState<(() => void) | null>(null);
   const addTaskCallbackRef = useRef<(() => void) | null>(null);
 
-  const isDashboard = location.pathname === '/';
+  const isDashboard = location.pathname === '/' || location.pathname === '/dashboard';
+  
+  // Fetch workspace users
+  const workspaceUsers = useQuery(api.users.getUsersByWorkspace, 
+    currentWorkspace ? { 
+      workspaceId: currentWorkspace.id as Id<"workspaces">
+    } : "skip"
+  );
+  
+  // Transform users for filter display
+  const userList = useMemo<UserInfo[]>(() => {
+    if (!workspaceUsers) return [];
+    return workspaceUsers.map((user: any) => ({
+      name: user.name,
+      email: user.email
+    }));
+  }, [workspaceUsers]);
 
   // Update ref when callback changes
   useEffect(() => {
@@ -162,18 +188,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       {/* User Filters */}
                       <div>
                         <h5 className="text-xs text-muted-foreground uppercase mb-2">Assigned Users</h5>
-                        <div className="space-y-2">
-                          {['John', 'Sarah', 'Mike', 'Emma', 'Alex'].map((user) => (
-                            <label key={user} className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={filters.assignedUsers?.includes(user) || false}
-                                onChange={() => handleUserFilter(user)}
-                                className="rounded border-border"
-                              />
-                              <span className="text-sm">{user}</span>
-                            </label>
-                          ))}
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {userList.length > 0 ? (
+                            userList.map((user) => (
+                              <label key={user.name} className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={filters.assignedUsers?.includes(user.name) || false}
+                                  onChange={() => handleUserFilter(user.name)}
+                                  className="rounded border-border"
+                                />
+                                <span className="text-sm">{user.name}</span>
+                              </label>
+                            ))
+                          ) : (
+                            <p className="text-xs text-muted-foreground">No users in workspace</p>
+                          )}
                         </div>
                       </div>
                     </div>
