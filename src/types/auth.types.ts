@@ -6,6 +6,7 @@ export interface AuthUser {
   avatar?: string;
   picture?: string;
   workspaceId?: string;
+  workspaceName?: string;
   role?: 'Admin' | 'Manager';
   emailVerified?: boolean;
 }

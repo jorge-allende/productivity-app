@@ -89,6 +89,7 @@ class AuthService {
           picture: user.picture,
           emailVerified: user.email_verified,
           workspaceId: userAny['https://productivityapp.com/workspace_id'],
+          workspaceName: userAny['https://productivityapp.com/workspace_name'] || userAny.user_metadata?.workspaceName,
           role: userAny['https://productivityapp.com/role']
         });
       });

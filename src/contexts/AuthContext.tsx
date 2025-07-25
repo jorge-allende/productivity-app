@@ -76,7 +76,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               auth0Id: auth0User.auth0Id,
               email: auth0User.email,
               name: auth0User.name || auth0User.email,
-              picture: auth0User.picture
+              picture: auth0User.picture,
+              workspaceName: auth0User.workspaceName
             });
             
             // syncUser now always creates a workspace for new users
@@ -144,7 +145,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 auth0Id: auth0User.auth0Id,
                 email: auth0User.email,
                 name: auth0User.name || auth0User.email,
-                picture: auth0User.picture
+                picture: auth0User.picture,
+                workspaceName: auth0User.workspaceName
               });
               
               // syncUser now always creates a workspace for new users
@@ -209,7 +211,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           auth0Id: auth0User.auth0Id,
           email: auth0User.email,
           name: auth0User.name || auth0User.email,
-          picture: auth0User.picture
+          picture: auth0User.picture,
+          workspaceName: auth0User.workspaceName
         });
       }
       

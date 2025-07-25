@@ -86,7 +86,7 @@ export const SignupForm: React.FC = () => {
       try {
         // TODO: Validate invitation code and join workspace
         await signup({ email, password, name });
-        navigate('/');
+        navigate('/dashboard');
       } catch (err: any) {
         setError(err.errorDescription || 'Failed to join workspace. Please check your invitation.');
       } finally {
@@ -116,7 +116,8 @@ export const SignupForm: React.FC = () => {
         plan: 'free'
       });
       setStep('complete');
-      setTimeout(() => navigate('/'), 2000);
+      // Let Auth0 callback handle the redirect
+      // The user will be redirected to /dashboard via the callback flow
     } catch (err: any) {
       setError(err.errorDescription || 'Failed to create account. Please try again.');
     } finally {

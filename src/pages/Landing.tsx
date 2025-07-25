@@ -10,7 +10,7 @@ export const Landing: React.FC = () => {
   // If already authenticated, redirect to dashboard
   React.useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
 
