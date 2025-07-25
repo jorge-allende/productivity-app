@@ -98,7 +98,7 @@ export const Sidebar: React.FC = () => {
           </div>
           <div className="text-left">
             <p className="text-sm font-medium text-foreground">{currentUser?.name || 'User'}</p>
-            <p className="text-xs text-muted-foreground">{currentUser?.role || 'Guest'}</p>
+            <p className="text-xs text-muted-foreground">{currentUser?.email || 'Guest'}</p>
           </div>
         </div>
         <button

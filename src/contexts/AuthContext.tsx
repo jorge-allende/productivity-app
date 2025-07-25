@@ -24,10 +24,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const syncUser = useMutation(api.auth.syncUser);
   const joinWorkspaceViaInvitation = useMutation(api.auth.joinWorkspaceViaInvitation);
   
+  // Check for development bypass
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const bypassAuth = process.env.REACT_APP_BYPASS_AUTH === 'true';
+  const shouldBypass = isDevelopment && bypassAuth;
+  
+  // Mock user for development
+  const mockUser: AuthUser | null = shouldBypass ? {
+    id: 'mock-user-id',
+    auth0Id: 'auth0|mock123',
+    email: 'dev@example.com',
+    name: 'Development User',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=dev',
+    role: 'Admin',
+    workspaceId: 'mock-workspace-id'
+  } : null;
+  
   const [authState, setAuthState] = useState<AuthState>({
-    isAuthenticated: false,
-    isLoading: true,
-    user: null,
+    isAuthenticated: shouldBypass,
+    isLoading: !shouldBypass,
+    user: mockUser,
     error: null
   });
   
@@ -61,9 +77,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [convexUser, userWorkspace, setCurrentWorkspace]);
 
+  // Set mock workspace in bypass mode
+  useEffect(() => {
+    if (shouldBypass) {
+      setCurrentWorkspace({
+        id: 'mock-workspace-id',
+        name: 'Development Workspace',
+        plan: 'pro'
+      });
+    }
+  }, [shouldBypass, setCurrentWorkspace]);
+
   // Check if user is already authenticated on mount
   useEffect(() => {
     const initAuth = async () => {
+      // Skip initialization in bypass mode
+      if (shouldBypass) {
+        return;
+      }
+      
       try {
         // Check if we have a valid session
         if (authService.isAuthenticated()) {

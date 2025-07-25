@@ -15,8 +15,12 @@ import { WorkspaceProvider } from './contexts/WorkspaceContext';
 const ProtectedRoute: React.FC<{ element: React.ReactElement; allowedRoles?: ('Admin' | 'Manager')[] }> = ({ element, allowedRoles }) => {
   const { currentUser, isAuthenticated, isLoading } = useAuth();
   
-  // Show loading spinner while checking authentication
-  if (isLoading) {
+  // Development bypass
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const bypassAuth = process.env.REACT_APP_BYPASS_AUTH === 'true';
+  
+  // Show loading spinner while checking authentication (skip in bypass mode)
+  if (isLoading && !(isDevelopment && bypassAuth)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center">
@@ -27,7 +31,8 @@ const ProtectedRoute: React.FC<{ element: React.ReactElement; allowedRoles?: ('A
     );
   }
   
-  if (!isAuthenticated) {
+  // Skip authentication check in development with bypass enabled
+  if (!isAuthenticated && !(isDevelopment && bypassAuth)) {
     return <Navigate to="/login" replace />;
   }
   

@@ -26,10 +26,15 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   
-  // Fetch workspace data from Convex when workspace ID is set
+  // Check if we're in bypass mode
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const bypassAuth = process.env.REACT_APP_BYPASS_AUTH === 'true';
+  const shouldBypass = isDevelopment && bypassAuth;
+  
+  // Fetch workspace data from Convex when workspace ID is set (skip in bypass mode)
   const convexWorkspace = useQuery(
     api.workspaces.getWorkspace,
-    currentWorkspace?.id ? { workspaceId: currentWorkspace.id as Id<"workspaces"> } : "skip"
+    currentWorkspace?.id && !shouldBypass ? { workspaceId: currentWorkspace.id as Id<"workspaces"> } : "skip"
   );
   
   // Update workspace data when fetched from Convex

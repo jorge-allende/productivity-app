@@ -23,7 +23,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onTaskClick }) => {
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: isDragging ? 'none' : transition || 'transform 200ms ease',
   };
 
 
@@ -42,8 +42,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onTaskClick }) => {
       {...listeners}
       onClick={handleClick}
       className={cn(
-        "bg-background p-3 rounded shadow-sm cursor-move hover:shadow-md transition-all flex flex-col border border-border w-full",
-        isDragging && "opacity-50"
+        "bg-background p-3 rounded shadow-sm cursor-move hover:shadow-md transition-all duration-200 ease-out flex flex-col border border-border w-full",
+        isDragging && "opacity-50 scale-105 shadow-lg rotate-2"
       )}
     >
       {/* Tag and Priority */}

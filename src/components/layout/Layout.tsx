@@ -6,8 +6,10 @@ import { useLocation } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { DashboardProvider } from '../../contexts/DashboardContext';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useQuery } from 'convex/react';
 import type { Id } from '../../convex/_generated/dataModel';
+import { isDevBypassEnabled } from '../../utils/devBypass';
 
 // Import api with require to avoid TypeScript depth issues
 const { api } = require('../../convex/_generated/api');
@@ -24,6 +26,7 @@ interface UserInfo {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { theme, toggleTheme } = useThemeStore();
   const { currentWorkspace } = useWorkspace();
+  const { currentUser } = useAuth();
   const location = useLocation();
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<{
@@ -35,10 +38,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const addTaskCallbackRef = useRef<(() => void) | null>(null);
 
   const isDashboard = location.pathname === '/' || location.pathname === '/dashboard';
+  const bypassMode = isDevBypassEnabled();
   
-  // Fetch workspace users
+  // Fetch workspace users (skip in bypass mode)
   const workspaceUsers = useQuery(api.users.getUsersByWorkspace, 
-    currentWorkspace ? { 
+    currentWorkspace && !bypassMode ? { 
       workspaceId: currentWorkspace.id as Id<"workspaces">
     } : "skip"
   );
@@ -112,7 +116,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div>
               <h1 className="text-lg font-semibold text-foreground">{currentWorkspace?.name || 'Select Workspace'}</h1>
               <p className="text-xs text-muted-foreground">
-                {currentWorkspace?.plan === 'free' ? 'Free Plan' : currentWorkspace?.plan === 'pro' ? 'Pro Plan' : currentWorkspace?.plan === 'enterprise' ? 'Enterprise' : ''}
+                {currentUser ? `Welcome, ${currentUser.name.split(' ')[0]}` : 'Welcome'}
               </p>
             </div>
           </div>

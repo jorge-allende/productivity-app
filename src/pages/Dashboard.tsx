@@ -9,6 +9,7 @@ import { Column, DEFAULT_COLUMNS } from '../types/Column';
 import { useDashboardContext } from '../contexts/DashboardContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useAuth } from '../contexts/AuthContext';
+import { isDevBypassEnabled } from '../utils/devBypass';
 
 // Import api with require to avoid TypeScript depth issues
 const { api } = require('../convex/_generated/api');
@@ -33,14 +34,87 @@ const columnIdToStatus = (columnId: string): 'todo' | 'in_progress' | 'done' => 
   return columnMap[columnId] || 'todo';
 };
 
+// Mock tasks for development bypass mode
+const MOCK_TASKS: Task[] = [
+  {
+    _id: 'task-1',
+    title: 'Design new landing page',
+    description: 'Create wireframes and mockups for the new landing page design',
+    columnId: 'todo',
+    priority: 'high',
+    tagColor: '#8B5CF6',
+    tagName: 'UI/UX',
+    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    assignedUsers: ['Development User'],
+    attachments: [
+      { name: 'wireframe.pdf', url: '#', type: 'application/pdf' },
+      { name: 'mockup.png', url: '#', type: 'image/png' }
+    ],
+    order: 1,
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+    createdBy: 'Development User',
+    watchers: [],
+    comments: [],
+    mentions: []
+  },
+  {
+    _id: 'task-2',
+    title: 'Implement authentication',
+    description: 'Set up Auth0 integration for user authentication',
+    columnId: 'in_progress',
+    priority: 'high',
+    tagColor: '#10B981',
+    tagName: 'Backend',
+    dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    assignedUsers: ['Development User'],
+    attachments: [
+      { name: 'auth-flow.pdf', url: '#', type: 'application/pdf' }
+    ],
+    order: 1,
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now()),
+    createdBy: 'Development User',
+    watchers: [],
+    comments: [],
+    mentions: []
+  },
+  {
+    _id: 'task-3',
+    title: 'Write API documentation',
+    description: 'Document all API endpoints and their usage',
+    columnId: 'done',
+    priority: 'medium',
+    tagColor: '#3B82F6',
+    tagName: 'Docs',
+    dueDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    assignedUsers: ['Development User'],
+    attachments: [
+      { name: 'api-docs.md', url: '#', type: 'text/markdown' },
+      { name: 'examples.json', url: '#', type: 'application/json' }
+    ],
+    order: 1,
+    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    completedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    createdBy: 'Development User',
+    watchers: [],
+    comments: [],
+    mentions: []
+  }
+];
+
 export const Dashboard: React.FC = () => {
   const { filters, setAddTaskCallback } = useDashboardContext();
   const { currentWorkspace } = useWorkspace();
   const { currentUser } = useAuth();
   
-  // Convex queries and mutations
+  // Check if we're in bypass mode
+  const bypassMode = isDevBypassEnabled();
+  
+  // Convex queries and mutations (skip in bypass mode)
   const convexTasks = useQuery(api.tasks.getTasks, 
-    currentWorkspace ? { workspaceId: currentWorkspace.id as Id<"workspaces"> } : "skip"
+    currentWorkspace && !bypassMode ? { workspaceId: currentWorkspace.id as Id<"workspaces"> } : "skip"
   );
   const createTaskMutation = useMutation(api.tasks.createTask);
   const updateTaskMutation = useMutation(api.tasks.updateTask);
@@ -49,6 +123,9 @@ export const Dashboard: React.FC = () => {
   
   // Transform Convex tasks to match UI Task interface
   const tasks: Task[] = useMemo(() => {
+    // Use mock tasks in bypass mode
+    if (bypassMode) return MOCK_TASKS;
+    
     if (!convexTasks) return [];
     
     return convexTasks.map((task: any): Task => ({

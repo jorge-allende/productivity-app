@@ -267,7 +267,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors",
                 columns.length >= 4
                   ? "bg-muted text-muted-foreground cursor-not-allowed"
-                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-foreground text-background hover:bg-foreground/90"
               )}
             >
               <Plus className="w-4 h-4" />
@@ -305,7 +305,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       </div>
       
       <DragOverlay>
-        {activeTask && <TaskCard task={activeTask} />}
+        {activeTask && (
+          <div className="rotate-3 scale-105 drop-shadow-lg">
+            <TaskCard task={activeTask} />
+          </div>
+        )}
       </DragOverlay>
     </DndContext>
   );

@@ -178,8 +178,8 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, tasks, on
         <div
           ref={setNodeRef}
           className={cn(
-            "min-h-[500px] px-3 pb-3 transition-colors",
-            isOver ? "bg-accent/10" : ""
+            "min-h-[500px] px-3 pb-3 transition-all duration-200 ease-out",
+            isOver ? "bg-primary/10 border-2 border-primary/30 border-dashed" : "border-2 border-transparent"
           )}
         >
           <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
