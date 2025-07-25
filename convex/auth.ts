@@ -23,6 +23,7 @@ export const syncUser = mutation({
     email: v.string(),
     name: v.string(),
     picture: v.optional(v.string()),
+    workspaceName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     console.log("syncUser called with:", { auth0Id: args.auth0Id, email: args.email, name: args.name });
@@ -67,7 +68,7 @@ export const syncUser = mutation({
     let workspaceId;
     try {
       workspaceId = await ctx.db.insert("workspaces", {
-        name: `${args.name}'s Workspace`,
+        name: args.workspaceName || `${args.name}'s Workspace`,
         createdBy: userId,
         plan: "free",
         createdAt: new Date().toISOString(),
