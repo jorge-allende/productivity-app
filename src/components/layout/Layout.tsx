@@ -16,6 +16,11 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+interface UserInfo {
+  name: string;
+  email: string;
+}
+
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { theme, toggleTheme } = useThemeStore();
   const { currentWorkspace } = useWorkspace();
@@ -39,7 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   );
   
   // Transform users for filter display
-  const userList = useMemo(() => {
+  const userList = useMemo<UserInfo[]>(() => {
     if (!workspaceUsers) return [];
     return workspaceUsers.map((user: any) => ({
       name: user.name,
