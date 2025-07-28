@@ -61,6 +61,7 @@ export const Sidebar: React.FC = () => {
         })}
       </nav>
 
+
       {/* Bottom Navigation */}
       {bottomNavigation.length > 0 && (
         <div className="border-t border-border p-4 space-y-1">
@@ -97,7 +98,7 @@ export const Sidebar: React.FC = () => {
             </span>
           </div>
           <div className="text-left">
-            <p className="text-sm font-medium text-foreground">{currentUser?.name || 'User'}</p>
+            <p className="text-sm font-medium text-foreground">{currentUser?.name?.split(' ')[0] || 'User'}</p>
             <p className="text-xs text-muted-foreground">{currentUser?.role || 'Guest'}</p>
           </div>
         </div>
