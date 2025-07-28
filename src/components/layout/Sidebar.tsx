@@ -15,6 +15,37 @@ export const Sidebar: React.FC = () => {
   const location = useLocation();
   const { currentUser, logout } = useAuth();
 
+  // Helper function to generate user initials
+  const getUserInitials = (user: typeof currentUser): string => {
+    if (!user) return 'U';
+    
+    // Check if name exists and is not an email
+    if (user.name && !user.name.includes('@')) {
+      return user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    } else if (user.email) {
+      // Use first 2 chars of email prefix
+      const emailName = user.email.split('@')[0];
+      return emailName.slice(0, 2).toUpperCase();
+    }
+    
+    return 'U';
+  };
+
+  // Helper function to get display name
+  const getDisplayName = (user: typeof currentUser): string => {
+    if (!user) return 'User';
+    
+    // Check if name exists and is not an email
+    if (user.name && !user.name.includes('@')) {
+      return user.name.split(' ')[0];
+    } else if (user.email) {
+      // Use email prefix
+      return user.email.split('@')[0];
+    }
+    
+    return 'User';
+  };
+
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Calendar', href: '/calendar', icon: Calendar },
@@ -94,11 +125,11 @@ export const Sidebar: React.FC = () => {
         <div className="flex items-center gap-3 px-3 py-2">
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
             <span className="text-primary-foreground text-sm font-medium">
-              {currentUser?.name.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+              {getUserInitials(currentUser)}
             </span>
           </div>
           <div className="text-left">
-            <p className="text-sm font-medium text-foreground">{currentUser?.name?.split(' ')[0] || 'User'}</p>
+            <p className="text-sm font-medium text-foreground">{getDisplayName(currentUser)}</p>
             <p className="text-xs text-muted-foreground">{currentUser?.role || 'Guest'}</p>
           </div>
         </div>
