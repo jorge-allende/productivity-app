@@ -44,7 +44,10 @@ export const Dashboard: React.FC = () => {
   
   // Convex queries and mutations
   const convexTasks = useQuery(api.tasks.getTasks, 
-    currentWorkspace ? { workspaceId: currentWorkspace.id as Id<"workspaces"> } : "skip"
+    currentWorkspace && currentUser ? { 
+      workspaceId: currentWorkspace.id as Id<"workspaces">,
+      auth0Id: currentUser.auth0Id 
+    } : "skip"
   );
   const createTaskMutation = useMutation(api.tasks.createTask);
   const updateTaskMutation = useMutation(api.tasks.updateTask);
@@ -185,7 +188,8 @@ export const Dashboard: React.FC = () => {
       await reorderTasksMutation({
         taskId: taskId as Id<"tasks">,
         newStatus: columnIdToStatus(newColumnId),
-        newOrder: newOrder
+        newOrder: newOrder,
+        auth0Id: currentUser?.auth0Id
       });
       console.log(`Successfully moved task "${task.title}"`);
       
@@ -233,6 +237,7 @@ export const Dashboard: React.FC = () => {
         tagName: taskData.tagName || 'General',
         dueDate: taskData.dueDate,
         assignedUsers: taskData.assignedUsers || [],
+        auth0Id: currentUser.auth0Id,
       });
       setIsModalOpen(false);
     } catch (error) {
@@ -264,6 +269,7 @@ export const Dashboard: React.FC = () => {
           tagName: updatedTask.tagName,
           dueDate: updatedTask.dueDate,
           assignedUsers: updatedTask.assignedUsers as Id<"users">[],
+          auth0Id: currentUser?.auth0Id,
         });
         setIsEditModalOpen(false);
         setSelectedTask(null);
