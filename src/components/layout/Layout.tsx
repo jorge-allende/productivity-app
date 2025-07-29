@@ -25,6 +25,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { theme, toggleTheme } = useThemeStore();
   const { currentWorkspace } = useWorkspace();
   const location = useLocation();
+
+  // Helper function to clean workspace name for display
+  const getDisplayWorkspaceName = (workspaceName: string | undefined): string => {
+    if (!workspaceName) return 'Select Workspace';
+    
+    // If workspace name looks like "email@domain.com's Workspace", clean it
+    if (workspaceName.includes('@') && workspaceName.includes("'s Workspace")) {
+      const emailPart = workspaceName.split("'s Workspace")[0];
+      if (emailPart.includes('@')) {
+        const cleanName = emailPart.split('@')[0];
+        return `${cleanName}'s Workspace`;
+      }
+    }
+    
+    return workspaceName;
+  };
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<{
     priority?: string[];
@@ -110,7 +126,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <span className="text-primary-foreground font-semibold text-sm">{currentWorkspace?.name?.[0]?.toUpperCase() || 'W'}</span>
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-foreground">{currentWorkspace?.name || 'Select Workspace'}</h1>
+              <h1 className="text-lg font-semibold text-foreground">{getDisplayWorkspaceName(currentWorkspace?.name)}</h1>
               <p className="text-xs text-muted-foreground">
                 {currentWorkspace?.plan === 'free' ? 'Free Plan' : currentWorkspace?.plan === 'pro' ? 'Pro Plan' : currentWorkspace?.plan === 'enterprise' ? 'Enterprise' : ''}
               </p>
