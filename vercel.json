@@ -1,0 +1,33 @@
+{
+  "env": {
+    "REACT_APP_CONVEX_URL": "@convex-url",
+    "REACT_APP_AUTH0_DOMAIN": "@auth0-domain", 
+    "REACT_APP_AUTH0_CLIENT_ID": "@auth0-client-id",
+    "REACT_APP_AUTH0_AUDIENCE": "@auth0-audience"
+  },
+  "build": {
+    "env": {
+      "REACT_APP_DEV_MODE": "false",
+      "REACT_APP_BYPASS_AUTH": "false"
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ]
+}
