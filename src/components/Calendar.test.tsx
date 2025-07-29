@@ -114,10 +114,10 @@ describe('CalendarWidget', () => {
   });
 
   it('should navigate to previous month', async () => {
-    const { container } = render(<CalendarWidget tasks={mockTasks} />);
+    render(<CalendarWidget tasks={mockTasks} />);
 
-    // Find the button containing ChevronLeft icon
-    const buttons = container.querySelectorAll('button');
+    // Find all buttons and click the first one (previous month)
+    const buttons = screen.getAllByRole('button');
     if (buttons.length > 0) await userEvent.click(buttons[0]);
 
     // The CalendarWidget updates its internal state
@@ -126,10 +126,10 @@ describe('CalendarWidget', () => {
   });
 
   it('should navigate to next month', async () => {
-    const { container } = render(<CalendarWidget tasks={mockTasks} />);
+    render(<CalendarWidget tasks={mockTasks} />);
 
     // Find all buttons and click the second one (next button)
-    const buttons = container.querySelectorAll('button');
+    const buttons = screen.getAllByRole('button');
     if (buttons.length > 1) await userEvent.click(buttons[1]);
 
     // The CalendarWidget updates its internal state

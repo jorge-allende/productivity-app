@@ -41,7 +41,12 @@
     "pretypecheck": "mkdir -p src/convex && cp -r convex/_generated src/convex/",
     "typecheck": "tsc --noEmit",
     "posttypecheck": "rm -rf src/convex/_generated",
-    "ci-local": "npm run typecheck && npm run lint && npm run test:ci && npm run build"
+    "ci-local": "npm run typecheck && npm run lint && npm run test:ci && npm run build",
+    "ci:test": "CI=true npm test -- --coverage --watchAll=false --testTimeout=10000",
+    "ci:lint": "CI=true npx eslint src --ext .ts,.tsx --max-warnings 0",
+    "ci:typecheck": "CI=true npm run typecheck",
+    "ci:full": "CI=true ./scripts/test-ci-local.sh",
+    "ci:quick": "CI=true npm run typecheck && npm run lint"
   },
   "eslintConfig": {
     "extends": [
