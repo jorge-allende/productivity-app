@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useQuery } from 'convex/react';
 import type { Id } from '../convex/_generated/dataModel';
 
-// Import api with require to avoid TypeScript depth issues
+// Using require for api to avoid TypeScript depth issues with this specific query
 const { api } = require('../convex/_generated/api');
 
 interface Workspace {
@@ -26,24 +26,29 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   
+  // Prepare query args separately to avoid TS depth issues
+  const queryArgs = currentWorkspace?.id 
+    ? { workspaceId: currentWorkspace.id as Id<"workspaces"> } 
+    : "skip";
+  
   // Fetch workspace data from Convex when workspace ID is set
-  const convexWorkspace = useQuery(
-    api.workspaces.getWorkspace,
-    currentWorkspace?.id ? { workspaceId: currentWorkspace.id as Id<"workspaces"> } : "skip"
-  );
+  const convexWorkspace = useQuery(api.workspaces.getWorkspace, queryArgs);
   
   // Update workspace data when fetched from Convex
   useEffect(() => {
-    if (convexWorkspace && currentWorkspace) {
-      setCurrentWorkspace({
-        ...currentWorkspace,
-        name: convexWorkspace.name,
-        plan: convexWorkspace.plan,
-        createdBy: convexWorkspace.createdBy,
-        settings: convexWorkspace.settings
+    if (convexWorkspace) {
+      setCurrentWorkspace(prev => {
+        if (!prev || prev.id !== convexWorkspace._id) return prev;
+        return {
+          ...prev,
+          name: convexWorkspace.name,
+          plan: convexWorkspace.plan,
+          createdBy: convexWorkspace.createdBy,
+          settings: convexWorkspace.settings
+        };
       });
     }
-  }, [convexWorkspace]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [convexWorkspace, setCurrentWorkspace]);
 
   return (
     <WorkspaceContext.Provider value={{ currentWorkspace, setCurrentWorkspace }}>

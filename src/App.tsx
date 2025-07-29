@@ -10,6 +10,7 @@ import { LoginForm } from './components/auth/LoginForm';
 import { SignupForm } from './components/auth/SignupForm';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
+import { Toaster } from 'react-hot-toast';
 
 // Protected route component
 const ProtectedRoute: React.FC<{ element: React.ReactElement; allowedRoles?: ('Admin' | 'Manager')[] }> = ({ element, allowedRoles }) => {
@@ -139,6 +140,16 @@ function App() {
       <AuthProvider>
         <Router>
           <AppRoutes />
+          <Toaster 
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#333',
+                color: '#fff',
+              },
+            }}
+          />
         </Router>
       </AuthProvider>
     </WorkspaceProvider>

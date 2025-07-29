@@ -9,8 +9,9 @@ import { Column, DEFAULT_COLUMNS } from '../types/Column';
 import { useDashboardContext } from '../contexts/DashboardContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useAuth } from '../contexts/AuthContext';
+import { ErrorHandler } from '../utils/errorHandling';
 
-// Import api with require to avoid TypeScript depth issues
+// Using require for api to avoid TypeScript depth issues with Convex queries
 const { api } = require('../convex/_generated/api');
 
 // Helper function to map Convex status to columnId
@@ -176,9 +177,7 @@ export const Dashboard: React.FC = () => {
       });
       console.log(`Successfully moved task "${task.title}"`);
     } catch (error) {
-      console.error('Failed to move task:', error);
-      // TODO: Show user-friendly error notification
-      // For now, just log the error - task will revert due to Convex reactivity
+      ErrorHandler.handle(error, 'Failed to move task. Please try again.');
     }
   };
 
@@ -201,7 +200,10 @@ export const Dashboard: React.FC = () => {
   }, [setAddTaskCallback, stableAddTaskCallback]);
 
   const handleCreateTask = async (taskData: any) => {
-    if (!currentWorkspace || !currentUser) return;
+    if (!currentWorkspace || !currentUser) {
+      ErrorHandler.handle(new Error('Workspace or user not found'), 'Please log in and select a workspace');
+      return;
+    }
     
     try {
       await createTaskMutation({
@@ -217,7 +219,7 @@ export const Dashboard: React.FC = () => {
       });
       setIsModalOpen(false);
     } catch (error) {
-      console.error('Failed to create task:', error);
+      ErrorHandler.handle(error, 'Failed to create task. Please try again.');
     }
   };
 
@@ -227,7 +229,10 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleTaskUpdate = async (updatedTask: Task, commentOnly?: boolean) => {
-    if (!currentWorkspace) return;
+    if (!currentWorkspace) {
+      ErrorHandler.handle(new Error('No workspace selected'), 'Please select a workspace');
+      return;
+    }
     
     try {
       // If it's not comment-only, update the task
@@ -248,7 +253,7 @@ export const Dashboard: React.FC = () => {
       }
       // TODO: Handle comment updates when comment API is integrated
     } catch (error) {
-      console.error('Failed to update task:', error);
+      ErrorHandler.handle(error, 'Failed to update task. Please try again.');
     }
   };
 
