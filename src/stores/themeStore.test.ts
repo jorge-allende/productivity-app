@@ -8,6 +8,9 @@ describe('themeStore', () => {
     
     // Reset the store state
     useThemeStore.setState({ theme: 'light' });
+    
+    // Clear any persisted state
+    useThemeStore.persist.clearStorage();
   });
 
   it('should initialize with light theme by default', () => {
@@ -73,16 +76,20 @@ describe('themeStore', () => {
     expect(parsedState.state.theme).toBe('dark');
   });
 
-  it('should load theme preference from localStorage on initialization', () => {
-    // Set dark theme in localStorage
+  it('should load theme preference from localStorage on initialization', async () => {
+    // Set dark theme in localStorage before store initialization
     localStorage.setItem('theme-storage', JSON.stringify({
       state: { theme: 'dark' },
       version: 0
     }));
 
-    // Create a new hook instance
-    const { result } = renderHook(() => useThemeStore());
+    // Force rehydration
+    await act(async () => {
+      useThemeStore.persist.rehydrate();
+    });
     
+    // Create a new hook instance and check the theme
+    const { result } = renderHook(() => useThemeStore());
     expect(result.current.theme).toBe('dark');
   });
 

@@ -38,18 +38,6 @@ jest.mock('./WorkspaceContext', () => ({
   WorkspaceProvider: ({ children }: any) => children,
 }));
 
-// Mock the Convex API
-jest.mock('../convex/_generated/api', () => ({
-  api: {
-    auth: {
-      syncUser: jest.fn(),
-      joinWorkspaceViaInvitation: jest.fn(),
-      getCurrentUser: jest.fn(),
-      getUserWorkspace: jest.fn(),
-    },
-  },
-}));
-
 const mockAuthService = authService as jest.Mocked<typeof authService>;
 const mockToast = toast as jest.Mocked<typeof toast>;
 

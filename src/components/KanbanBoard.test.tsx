@@ -37,16 +37,16 @@ jest.mock('@dnd-kit/sortable', () => ({
 // Mock KanbanColumn
 jest.mock('./kanban/KanbanColumn', () => ({
   __esModule: true,
-  KanbanColumn: ({ column, tasks, onAddTask }: any) => (
-    <div data-testid={`column-${column.id}`}>
-      <h3>{column.title}</h3>
+  KanbanColumn: ({ id, title, tasks, onAddTask }: any) => (
+    <div data-testid={`column-${id}`}>
+      <h3>{title}</h3>
       <div>Tasks: {tasks.length}</div>
       {tasks.map((task: Task) => (
         <div key={task._id} data-testid={`task-${task._id}`}>
           {task.title}
         </div>
       ))}
-      <button onClick={() => onAddTask(column.id)}>Add Task</button>
+      <button onClick={() => onAddTask()}>Add Task</button>
     </div>
   ),
 }));

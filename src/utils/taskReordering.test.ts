@@ -232,7 +232,8 @@ describe('Task Reordering Logic', () => {
       ];
       
       // Insert multiple tasks between 1 and 2
-      for (let i = 0; i < 5; i++) {
+      // We need more insertions to create gaps smaller than 2
+      for (let i = 0; i < 10; i++) {
         const newOrder = calculateNewOrder(tasks, 1);
         tasks.push(createTask(`new${i}`, 'todo', newOrder));
         tasks.sort((a, b) => a.order - b.order);
