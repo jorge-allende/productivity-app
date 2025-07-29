@@ -73,10 +73,14 @@ describe('AuthContext', () => {
     const { useMutation } = require('convex/react');
     useMutation.mockReturnValue(jest.fn());
 
+    const { WorkspaceProvider } = require('./WorkspaceContext');
+    
     render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
+      <WorkspaceProvider>
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      </WorkspaceProvider>
     );
 
     expect(screen.getByText('Loading...')).toBeInTheDocument();
@@ -103,10 +107,14 @@ describe('AuthContext', () => {
     const { useMutation } = require('convex/react');
     useMutation.mockReturnValue(jest.fn());
 
+    const { WorkspaceProvider } = require('./WorkspaceContext');
+    
     render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
+      <WorkspaceProvider>
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      </WorkspaceProvider>
     );
 
     await waitFor(() => {
@@ -210,10 +218,14 @@ describe('AuthContext', () => {
     const { useMutation } = require('convex/react');
     useMutation.mockReturnValue(jest.fn());
 
+    const { WorkspaceProvider } = require('./WorkspaceContext');
+    
     render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
+      <WorkspaceProvider>
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      </WorkspaceProvider>
     );
 
     await waitFor(() => {

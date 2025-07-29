@@ -4,7 +4,7 @@
 // learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
 
-// Mock Convex API globally
+// Mock Convex API
 jest.mock('../convex/_generated/api', () => ({
   api: {
     auth: {
