@@ -19,27 +19,55 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Mock user data for development
+const MOCK_USER: AuthUser = {
+  id: 'dev_user_123',
+  auth0Id: 'auth0|dev123',
+  email: 'dev@example.com',
+  name: 'Dev User',
+  avatar: 'https://ui-avatars.com/api/?name=Dev+User&background=3b82f6&color=fff',
+  role: 'Admin',
+  workspaceId: 'dev_workspace_123'
+};
+
+const MOCK_WORKSPACE = {
+  id: 'dev_workspace_123',
+  name: 'Dev Workspace',
+  plan: 'pro' as const
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { setCurrentWorkspace } = useWorkspace();
   const syncUser = useMutation(api.auth.syncUser);
   const joinWorkspaceViaInvitation = useMutation(api.auth.joinWorkspaceViaInvitation);
   
+  // Check if we're in dev mode
+  const isDevMode = process.env.REACT_APP_DEV_MODE === 'true';
+  
   const [authState, setAuthState] = useState<AuthState>({
-    isAuthenticated: false,
-    isLoading: true,
-    user: null,
+    isAuthenticated: isDevMode,
+    isLoading: !isDevMode,
+    user: isDevMode ? MOCK_USER : null,
     error: null
   });
   
-  const [auth0Id, setAuth0Id] = useState<string | null>(null);
-  const convexUser = useQuery(api.auth.getCurrentUser, auth0Id ? { auth0Id } : "skip");
+  const [auth0Id, setAuth0Id] = useState<string | null>(isDevMode ? MOCK_USER.auth0Id : null);
+  const convexUser = useQuery(api.auth.getCurrentUser, auth0Id && !isDevMode ? { auth0Id } : "skip");
   const userWorkspace = useQuery(api.auth.getUserWorkspace, 
-    convexUser ? { userId: convexUser._id } : "skip"
+    convexUser && !isDevMode ? { userId: convexUser._id } : "skip"
   );
 
-  // Sync Convex user with Auth0 user
+  // Set mock workspace in dev mode
   useEffect(() => {
-    if (convexUser && userWorkspace) {
+    if (isDevMode) {
+      setCurrentWorkspace(MOCK_WORKSPACE);
+      console.log('🚀 Dev Mode: Authentication bypassed');
+    }
+  }, [isDevMode, setCurrentWorkspace]);
+
+  // Sync Convex user with Auth0 user (only in production)
+  useEffect(() => {
+    if (!isDevMode && convexUser && userWorkspace) {
       setAuthState(prev => ({
         ...prev,
         user: {
@@ -59,10 +87,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         plan: userWorkspace.plan || 'free'
       });
     }
-  }, [convexUser, userWorkspace, setCurrentWorkspace]);
+  }, [convexUser, userWorkspace, setCurrentWorkspace, isDevMode]);
 
-  // Check if user is already authenticated on mount
+  // Check if user is already authenticated on mount (only in production)
   useEffect(() => {
+    if (isDevMode) return; // Skip auth check in dev mode
+    
     const initAuth = async () => {
       try {
         // Check if we have a valid session
@@ -75,7 +105,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             await syncUser({
               auth0Id: auth0User.auth0Id,
               email: auth0User.email,
-              name: auth0User.name || auth0User.email,
+              name: auth0User.name || auth0User.email.split('@')[0],
               picture: auth0User.picture,
               workspaceName: auth0User.workspaceName
             });
@@ -129,7 +159,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               await joinWorkspaceViaInvitation({
                 auth0Id: auth0User.auth0Id,
                 email: auth0User.email,
-                name: auth0User.name || auth0User.email,
+                name: auth0User.name || auth0User.email.split('@')[0],
                 inviteCode,
                 picture: auth0User.picture
               });
@@ -144,7 +174,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               await syncUser({
                 auth0Id: auth0User.auth0Id,
                 email: auth0User.email,
-                name: auth0User.name || auth0User.email,
+                name: auth0User.name || auth0User.email.split('@')[0],
                 picture: auth0User.picture,
                 workspaceName: auth0User.workspaceName
               });
@@ -182,9 +212,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     initAuth();
-  }, [syncUser, joinWorkspaceViaInvitation]);
+  }, [syncUser, joinWorkspaceViaInvitation, isDevMode]);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
+    if (isDevMode) {
+      // Mock login in dev mode
+      setAuthState({
+        isAuthenticated: true,
+        isLoading: false,
+        user: MOCK_USER,
+        error: null
+      });
+      return;
+    }
+    
     setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
@@ -201,7 +242,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await joinWorkspaceViaInvitation({
           auth0Id: auth0User.auth0Id,
           email: auth0User.email,
-          name: auth0User.name || auth0User.email,
+          name: auth0User.name || auth0User.email.split('@')[0],
           inviteCode,
           picture: auth0User.picture
         });
@@ -210,7 +251,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await syncUser({
           auth0Id: auth0User.auth0Id,
           email: auth0User.email,
-          name: auth0User.name || auth0User.email,
+          name: auth0User.name || auth0User.email.split('@')[0],
           picture: auth0User.picture,
           workspaceName: auth0User.workspaceName
         });
@@ -243,9 +284,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       throw enhancedError;
     }
-  }, [syncUser, joinWorkspaceViaInvitation]);
+  }, [syncUser, joinWorkspaceViaInvitation, isDevMode]);
 
   const signup = useCallback(async (credentials: SignupCredentials) => {
+    if (isDevMode) {
+      // Mock signup in dev mode
+      setAuthState({
+        isAuthenticated: true,
+        isLoading: false,
+        user: MOCK_USER,
+        error: null
+      });
+      return;
+    }
+    
     setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
@@ -265,10 +317,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }));
       throw error;
     }
-  }, [login]);
+  }, [login, isDevMode]);
 
   const logout = useCallback(() => {
-    authService.logout();
+    if (!isDevMode) {
+      authService.logout();
+    }
     setAuth0Id(null);
     setAuthState({
       isAuthenticated: false,
@@ -277,9 +331,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       error: null
     });
     setCurrentWorkspace(null);
-  }, [setCurrentWorkspace]);
+  }, [setCurrentWorkspace, isDevMode]);
 
   const refreshAuth = useCallback(async () => {
+    if (isDevMode) return; // No need to refresh in dev mode
+    
     try {
       await authService.renewTokens();
       const user = await authService.getUserInfo();
@@ -291,11 +347,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // If refresh fails, log out
       logout();
     }
-  }, [logout]);
+  }, [logout, isDevMode]);
 
   const getAccessToken = useCallback(() => {
+    if (isDevMode) return 'dev-token';
     return authService.getAccessToken();
-  }, []);
+  }, [isDevMode]);
 
   // For compatibility with existing code
   const setCurrentUser = useCallback((user: AuthUser | null) => {
@@ -306,16 +363,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }));
   }, []);
 
-  // Refresh tokens before they expire
+  // Refresh tokens before they expire (only in production)
   useEffect(() => {
-    if (!authState.isAuthenticated) return;
+    if (!authState.isAuthenticated || isDevMode) return;
 
     const interval = setInterval(() => {
       refreshAuth();
     }, 3600000); // Refresh every hour
 
     return () => clearInterval(interval);
-  }, [authState.isAuthenticated, refreshAuth]);
+  }, [authState.isAuthenticated, refreshAuth, isDevMode]);
 
   return (
     <AuthContext.Provider value={{
