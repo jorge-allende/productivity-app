@@ -58,6 +58,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     error: null
   });
   
+  // Track retry attempts
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRY_ATTEMPTS = 3;
+  
   const [auth0Id, setAuth0Id] = useState<string | null>(isDevMode ? MOCK_USER.auth0Id : null);
   const convexUser = useQuery(api.auth.getCurrentUser, auth0Id && !isDevMode ? { auth0Id } : "skip");
   const userWorkspace = useQuery(api.auth.getUserWorkspace, 
@@ -100,59 +104,84 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (isDevMode) return; // Skip auth check in dev mode
     
+    let mounted = true;
     const initAuth = async () => {
       try {
-        // Check if we have a valid session
-        if (authService.isAuthenticated()) {
-          const auth0User = await authService.getUserInfo();
-          setAuth0Id(auth0User.auth0Id);
-          
-          // Try to sync with Convex
-          try {
-            await syncUser({
-              auth0Id: auth0User.auth0Id,
-              email: auth0User.email,
-              name: auth0User.name || auth0User.email.split('@')[0],
-              picture: auth0User.picture,
-              workspaceName: auth0User.workspaceName
-            });
-            
-            // syncUser now always creates a workspace for new users
-            setAuthState(prev => ({
-              ...prev,
-              isAuthenticated: true,
-              isLoading: false
-            }));
-          } catch (error: any) {
-            console.error('Failed to sync user:', error);
-            
-            // Determine the type of error and provide appropriate message
-            let errorMessage = 'Failed to create user account';
-            let errorCode = 'SYNC_FAILED';
-            
-            if (error.message?.includes('NetworkError') || error.message?.includes('Failed to fetch')) {
-              errorMessage = 'Network error. Please check your connection and try again.';
-              errorCode = 'NETWORK_ERROR';
-            } else if (error.message?.includes('workspace')) {
-              errorMessage = 'Failed to create workspace. Please try again.';
-              errorCode = 'WORKSPACE_ERROR';
-            }
-            
+        // Add timeout to prevent hanging
+        const timeout = setTimeout(() => {
+          if (mounted) {
             setAuthState({
               isAuthenticated: false,
               isLoading: false,
               user: null,
-              error: { 
-                error: errorCode, 
-                code: errorCode, 
-                message: errorMessage,
-                errorDescription: errorMessage 
+              error: {
+                error: 'TIMEOUT',
+                code: 'TIMEOUT',
+                message: 'Authentication timeout. Please refresh the page.',
+                errorDescription: 'The authentication process took too long to complete.'
               }
             });
           }
-        } else {
-          // Try to parse hash if coming from Auth0 redirect
-          try {
+        }, 30000); // 30 second timeout
+        
+        try {
+          // Check if we have a valid session
+          if (authService.isAuthenticated()) {
+            const auth0User = await authService.getUserInfo();
+            setAuth0Id(auth0User.auth0Id);
+            
+            // Try to sync with Convex
+            try {
+              await syncUser({
+                auth0Id: auth0User.auth0Id,
+                email: auth0User.email,
+                name: auth0User.name || auth0User.email.split('@')[0],
+                picture: auth0User.picture,
+                workspaceName: auth0User.workspaceName
+              });
+              
+              // syncUser now always creates a workspace for new users
+              setAuthState(prev => ({
+                ...prev,
+                isAuthenticated: true,
+                isLoading: false
+              }));
+            } catch (error: any) {
+              console.error('Failed to sync user:', error);
+              
+              // Determine the type of error and provide appropriate message
+              let errorMessage = 'Failed to create user account';
+              let errorCode = 'SYNC_FAILED';
+              
+              if (error.message?.includes('NetworkError') || error.message?.includes('Failed to fetch')) {
+                errorMessage = 'Network error. Please check your connection and try again.';
+                errorCode = 'NETWORK_ERROR';
+              } else if (error.message?.includes('workspace')) {
+                errorMessage = 'Failed to create workspace. Please try again.';
+                errorCode = 'WORKSPACE_ERROR';
+              } else if (error.message?.includes('ConvexError')) {
+                errorMessage = 'Database connection error. Please try again.';
+                errorCode = 'DATABASE_ERROR';
+              }
+              
+              // Clear Auth0 session on sync failure to prevent loop
+              authService.logout();
+              
+              setAuthState({
+                isAuthenticated: false,
+                isLoading: false,
+                user: null,
+                error: { 
+                  error: errorCode, 
+                  code: errorCode, 
+                  message: errorMessage,
+                  errorDescription: errorMessage 
+                }
+              });
+            }
+          } else {
+            // Try to parse hash if coming from Auth0 redirect
+            try {
             await authService.parseHashFromUrl();
             const auth0User = await authService.getUserInfo();
             setAuth0Id(auth0User.auth0Id);
@@ -193,8 +222,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 isLoading: false
               }));
             }
-          } catch (error: any) {
-            // No valid session or error during authentication
+            } catch (error: any) {
+              // No valid session or error during authentication
             console.error('Auth initialization error:', error);
             
             // Only set error state if there's an actual error (not just no session)
@@ -206,20 +235,44 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               user: null,
               error: hasError ? error : null
             });
+            }
           }
+          
+          clearTimeout(timeout);
+        } catch (error: any) {
+          console.error('Inner try-catch error:', error);
+          clearTimeout(timeout);
+          throw error; // Re-throw to be caught by outer catch
         }
-      } catch (error) {
-        setAuthState({
-          isAuthenticated: false,
-          isLoading: false,
-          user: null,
-          error: error as AuthError
-        });
+      } catch (error: any) {
+        console.error('Critical auth error:', error);
+        
+        // Retry logic for network errors
+        if (mounted && retryCount < MAX_RETRY_ATTEMPTS && 
+            (error.message?.includes('NetworkError') || error.message?.includes('Failed to fetch'))) {
+          setRetryCount(prev => prev + 1);
+          setTimeout(() => {
+            if (mounted) {
+              initAuth();
+            }
+          }, 1000 * Math.pow(2, retryCount)); // Exponential backoff
+        } else {
+          setAuthState({
+            isAuthenticated: false,
+            isLoading: false,
+            user: null,
+            error: error as AuthError
+          });
+        }
       }
     };
 
     initAuth();
-  }, [syncUser, joinWorkspaceViaInvitation, isDevMode]);
+    
+    return () => {
+      mounted = false;
+    };
+  }, [syncUser, joinWorkspaceViaInvitation, isDevMode, retryCount]);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     if (isDevMode) {

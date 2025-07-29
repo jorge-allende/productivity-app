@@ -11,6 +11,8 @@ import { SignupForm } from './components/auth/SignupForm';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
 import { Toaster } from 'react-hot-toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { ConvexConnectionStatus } from './components/ConvexConnectionStatus';
 
 // Protected route component
 const ProtectedRoute: React.FC<{ element: React.ReactElement; allowedRoles?: ('Admin' | 'Manager')[] }> = ({ element, allowedRoles }) => {
@@ -66,18 +68,38 @@ const AuthRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
 // Auth callback component for handling Auth0 redirects
 const AuthCallback: React.FC = () => {
   const { isLoading, isAuthenticated, error } = useAuth();
+  const [hasRedirected, setHasRedirected] = React.useState(false);
   
   React.useEffect(() => {
     // The AuthContext will handle parsing the hash automatically
-    if (!isLoading && isAuthenticated) {
-      // Redirect to dashboard after successful auth
-      // Use React Router navigation instead of full page reload
-      window.location.replace('/dashboard');
+    if (!isLoading && isAuthenticated && !hasRedirected) {
+      setHasRedirected(true);
+      // Use a small delay to ensure state is updated
+      setTimeout(() => {
+        window.location.replace('/dashboard');
+      }, 100);
     }
-  }, [isLoading, isAuthenticated]);
+  }, [isLoading, isAuthenticated, hasRedirected]);
   
   if (error) {
-    return <Navigate to="/login" replace />;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center max-w-md">
+          <div className="text-red-600 dark:text-red-400 mb-4">
+            Authentication failed
+          </div>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">
+            {error.message || 'An error occurred during authentication'}
+          </p>
+          <button
+            onClick={() => window.location.href = '/login'}
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+          >
+            Back to Login
+          </button>
+        </div>
+      </div>
+    );
   }
   
   return (
@@ -136,23 +158,26 @@ function AppRoutes() {
 
 function App() {
   return (
-    <WorkspaceProvider>
-      <AuthProvider>
-        <Router>
-          <AppRoutes />
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#333',
-                color: '#fff',
-              },
-            }}
-          />
-        </Router>
-      </AuthProvider>
-    </WorkspaceProvider>
+    <ErrorBoundary>
+      <WorkspaceProvider>
+        <AuthProvider>
+          <Router>
+            <AppRoutes />
+            <ConvexConnectionStatus />
+            <Toaster 
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: '#333',
+                  color: '#fff',
+                },
+              }}
+            />
+          </Router>
+        </AuthProvider>
+      </WorkspaceProvider>
+    </ErrorBoundary>
   );
 }
 

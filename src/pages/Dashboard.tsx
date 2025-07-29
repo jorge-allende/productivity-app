@@ -12,6 +12,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { ErrorHandler } from '../utils/errorHandling';
 import { useDevTools } from '../utils/devTools';
 import { TaskOrderDebugger } from '../components/dev/TaskOrderDebugger';
+import { safeLocalStorage } from '../utils/localStorage';
+import { DashboardSkeleton } from '../components/ui/SkeletonLoader';
 
 // Using require for api to avoid TypeScript depth issues with Convex queries
 const { api } = require('../convex/_generated/api');
@@ -54,13 +56,16 @@ export const Dashboard: React.FC = () => {
   // const deleteTaskMutation = useMutation(api.tasks.deleteTask); // TODO: Use when delete is implemented
   const reorderTasksMutation = useMutation(api.tasks.reorderTasks);
   
-  // Transform Convex tasks to match UI Task interface
+  // Track optimistic updates
+  const [optimisticUpdates, setOptimisticUpdates] = useState<Map<string, Partial<Task>>>(new Map());
+  
+  // Transform Convex tasks to match UI Task interface with optimistic updates
   const tasks: Task[] = useMemo(() => {
     if (!convexTasks) return [];
     
     console.log('Transforming tasks:', convexTasks.length, 'tasks from Convex');
     
-    return convexTasks.map((task: any): Task => ({
+    const baseTasks = convexTasks.map((task: any): Task => ({
       _id: task._id,
       title: task.title,
       description: task.description,
@@ -81,21 +86,26 @@ export const Dashboard: React.FC = () => {
       comments: [], // TODO: Fetch from comments table
       mentions: [] // TODO: Implement mentions
     }));
-  }, [convexTasks]);
-  const [columns, setColumns] = useState<Column[]>(() => {
-    const saved = localStorage.getItem('kanbanColumns');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse saved columns:', e);
+    
+    // Apply optimistic updates
+    return baseTasks.map((task: Task) => {
+      const update = optimisticUpdates.get(task._id);
+      if (update) {
+        return { ...task, ...update };
       }
-    }
-    return DEFAULT_COLUMNS;
+      return task;
+    });
+  }, [convexTasks, optimisticUpdates]);
+  const [columns, setColumns] = useState<Column[]>(() => {
+    return safeLocalStorage.getItem<Column[]>('kanbanColumns', {
+      fallback: DEFAULT_COLUMNS,
+      validate: (value) => Array.isArray(value) && value.length > 0
+    }) || DEFAULT_COLUMNS;
   });
   const [boardName, setBoardName] = useState<string>(() => {
-    const saved = localStorage.getItem('kanbanBoardName');
-    return saved || 'Kanban Board';
+    return safeLocalStorage.getItem<string>('kanbanBoardName', {
+      fallback: 'Kanban Board'
+    }) || 'Kanban Board';
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalColumnId, setModalColumnId] = useState<string>('todo');
@@ -103,12 +113,12 @@ export const Dashboard: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   // Save columns to localStorage when they change
   useEffect(() => {
-    localStorage.setItem('kanbanColumns', JSON.stringify(columns));
+    safeLocalStorage.setItem('kanbanColumns', columns);
   }, [columns]);
 
   // Save board name to localStorage when it changes
   useEffect(() => {
-    localStorage.setItem('kanbanBoardName', boardName);
+    safeLocalStorage.setItem('kanbanBoardName', boardName);
   }, [boardName]);
 
   // Memoize the first column ID to prevent unnecessary callback recreation
@@ -164,8 +174,8 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleTaskMove = async (taskId: string, newColumnId: string, newOrder: number) => {
-    if (!currentWorkspace) {
-      console.error('No workspace selected');
+    if (!currentWorkspace || !currentUser) {
+      ErrorHandler.handle(new Error('No workspace or user selected'), 'Please log in and select a workspace');
       return;
     }
     
@@ -176,12 +186,15 @@ export const Dashboard: React.FC = () => {
     }
     
     console.log(`Moving task "${task.title}" from ${task.columnId} to ${newColumnId} with order ${newOrder}`);
-    console.log('Current workspace ID:', currentWorkspace.id);
-    console.log('Task details before move:', {
-      _id: task._id,
-      title: task.title,
-      columnId: task.columnId,
-      order: task.order
+    
+    // Apply optimistic update
+    setOptimisticUpdates(prev => {
+      const updates = new Map(prev);
+      updates.set(taskId, {
+        columnId: newColumnId,
+        order: newOrder
+      });
+      return updates;
     });
     
     try {
@@ -189,15 +202,26 @@ export const Dashboard: React.FC = () => {
         taskId: taskId as Id<"tasks">,
         newStatus: columnIdToStatus(newColumnId),
         newOrder: newOrder,
-        auth0Id: currentUser?.auth0Id
+        auth0Id: currentUser.auth0Id
       });
       console.log(`Successfully moved task "${task.title}"`);
       
-      // Log the tasks after mutation to see if they're being filtered out
-      console.log('Total tasks after move:', convexTasks?.length);
-      console.log('Filtered tasks after move:', tasks.length);
+      // Clear optimistic update on success
+      setOptimisticUpdates(prev => {
+        const updates = new Map(prev);
+        updates.delete(taskId);
+        return updates;
+      });
     } catch (error) {
       console.error('Error moving task:', error);
+      
+      // Revert optimistic update on error
+      setOptimisticUpdates(prev => {
+        const updates = new Map(prev);
+        updates.delete(taskId);
+        return updates;
+      });
+      
       ErrorHandler.handle(error, 'Failed to move task. Please try again.');
     }
   };
@@ -303,18 +327,39 @@ export const Dashboard: React.FC = () => {
   if (!currentWorkspace) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-gray-500 dark:text-gray-400">
-          Please select a workspace to view tasks
+        <div className="text-center">
+          <div className="text-gray-500 dark:text-gray-400 mb-4">
+            Please select a workspace to view tasks
+          </div>
+          <button 
+            onClick={() => window.location.href = '/settings'}
+            className="text-primary-600 hover:text-primary-700 underline"
+          >
+            Go to Settings
+          </button>
         </div>
       </div>
     );
   }
   
   if (convexTasks === undefined) {
+    return <DashboardSkeleton />;
+  }
+  
+  // Error state
+  if (convexTasks === null) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-gray-500 dark:text-gray-400">
-          Loading tasks...
+        <div className="text-center">
+          <div className="text-red-600 dark:text-red-400 mb-4">
+            Failed to load tasks
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="text-primary-600 hover:text-primary-700 underline"
+          >
+            Refresh Page
+          </button>
         </div>
       </div>
     );

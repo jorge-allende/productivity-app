@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -48,13 +48,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   
   // Initialize sort modes from localStorage or defaults
   const [columnSortModes, setColumnSortModes] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem('kanbanSortModes');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('kanbanSortModes');
+      if (saved) {
         return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse saved sort modes:', e);
       }
+    } catch (e) {
+      console.error('Failed to parse saved sort modes:', e);
     }
     // Initialize with 'custom' for all columns
     const modes: Record<string, string> = {};
@@ -66,7 +66,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   // Save sort modes to localStorage when they change
   useEffect(() => {
-    localStorage.setItem('kanbanSortModes', JSON.stringify(columnSortModes));
+    try {
+      localStorage.setItem('kanbanSortModes', JSON.stringify(columnSortModes));
+    } catch (e) {
+      console.error('Failed to save sort modes:', e);
+    }
   }, [columnSortModes]);
 
   // Update edit value when board name prop changes
@@ -90,7 +94,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     })
   );
 
-  const sortTasks = (tasks: Task[], sortMode: string): Task[] => {
+  const sortTasks = useCallback((tasks: Task[], sortMode: string): Task[] => {
     const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
     
     switch(sortMode) {
@@ -111,12 +115,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       default: // 'custom'
         return [...tasks].sort((a, b) => a.order - b.order);
     }
-  };
+  }, []);
 
-  const getColumnTasks = (columnId: string) => {
+  const getColumnTasks = useCallback((columnId: string) => {
     const filteredTasks = tasks.filter(task => task.columnId === columnId);
     return sortTasks(filteredTasks, columnSortModes[columnId] || 'custom');
-  };
+  }, [tasks, columnSortModes, sortTasks]);
 
   // Board name editing handlers
   const handleBoardNameClick = () => {
@@ -152,18 +156,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     handleBoardNameSave();
   };
 
-  const handleSortModeChange = (columnId: string, mode: string) => {
+  const handleSortModeChange = useCallback((columnId: string, mode: string) => {
     setColumnSortModes(prev => ({
       ...prev,
       [columnId]: mode
     }));
-  };
+  }, []);
 
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
-  };
+  }, []);
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
 
@@ -234,9 +238,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     const newOrder = dropIndex;
 
     onTaskMove(activeTask._id, targetColumnId, newOrder);
-  };
+  }, [tasks, columns, columnSortModes, onTaskMove, handleSortModeChange, getColumnTasks]);
 
-  const activeTask = activeId ? tasks.find(task => task._id === activeId) : null;
+  const activeTask = useMemo(() => 
+    activeId ? tasks.find(task => task._id === activeId) : null,
+    [activeId, tasks]
+  );
 
   return (
     <DndContext
