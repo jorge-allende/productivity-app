@@ -22,13 +22,29 @@ export const getTasks = query({
       throw new Error("Access denied to this workspace");
     }
     
-    return await ctx.db
+    const tasks = await ctx.db
       .query("tasks")
       .filter(q => q.eq(q.field("workspaceId"), args.workspaceId))
-      .order("asc")
       .collect();
+    
+    // Sort tasks by order within each status to ensure correct display
+    // This provides an additional safeguard against any ordering issues
+    return tasks.sort((a, b) => {
+      // First sort by status (todo -> in_progress -> done)
+      const statusOrder = { todo: 0, in_progress: 1, done: 2 };
+      const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+      if (statusDiff !== 0) return statusDiff;
+      
+      // Then sort by order within the same status
+      return (a.order || 0) - (b.order || 0);
+    });
   },
 });
+
+// Constants for the gap-based ordering system
+const ORDER_GAP = 1000; // Gap between consecutive tasks
+const MIN_ORDER = 1000;
+const MAX_ORDER = Number.MAX_SAFE_INTEGER - ORDER_GAP;
 
 export const createTask = mutation({
   args: {
@@ -59,6 +75,7 @@ export const createTask = mutation({
       throw new Error("Access denied to this workspace");
     }
     
+    // Get all tasks in the same status column, sorted by order
     const tasks = await ctx.db
       .query("tasks")
       .filter(q => 
@@ -68,12 +85,25 @@ export const createTask = mutation({
         )
       )
       .collect();
-    const maxOrder = Math.max(...tasks.map(t => t.order || 0), 0);
+    
+    // Sort tasks by order to find the right position
+    const sortedTasks = tasks.sort((a, b) => (a.order || 0) - (b.order || 0));
+    
+    // Calculate the order for the new task (append to end)
+    let newOrder: number;
+    if (sortedTasks.length === 0) {
+      newOrder = MIN_ORDER;
+    } else {
+      const lastOrder = sortedTasks[sortedTasks.length - 1].order || 0;
+      newOrder = Math.max(lastOrder + ORDER_GAP, MIN_ORDER);
+    }
+    
+    console.log(`Creating task in ${args.status} with order ${newOrder}`);
     
     return await ctx.db.insert("tasks", {
       ...args,
       attachments: [],
-      order: maxOrder + 1,
+      order: newOrder,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
@@ -187,63 +217,223 @@ export const reorderTasks = mutation({
     const oldStatus = task.status;
     const oldOrder = task.order;
     
-    console.log(`Moving task ${taskId} from ${oldStatus}:${oldOrder} to ${newStatus}:${newOrder}`);
+    console.log(`[REORDER] Moving task ${taskId} from ${oldStatus}:${oldOrder} to ${newStatus} at position ${newOrder}`);
     
-    // First, update the moved task
-    await ctx.db.patch(taskId, {
-      status: newStatus,
-      order: Math.round(newOrder), // Use integer orders to avoid floating point issues
-      updatedAt: new Date().toISOString(),
-    });
-    
-    // If moving to a different column, we need to handle both source and target columns
-    if (oldStatus !== newStatus) {
-      // Get tasks in the source column (excluding the moved task)
-      const sourceColumnTasks = await ctx.db
-        .query("tasks")
-        .filter(q => 
-          q.and(
-            q.eq(q.field("workspaceId"), task.workspaceId),
-            q.eq(q.field("status"), oldStatus),
-            q.neq(q.field("_id"), taskId)
-          )
-        )
-        .order("asc")
-        .collect();
-      
-      // Reorder source column tasks to fill the gap
-      for (const sourceTask of sourceColumnTasks) {
-        if (sourceTask.order > oldOrder) {
-          await ctx.db.patch(sourceTask._id, {
-            order: sourceTask.order - 1,
-          });
-        }
-      }
-    }
-    
-    // Get tasks in the target column AFTER the moved task has been updated
+    // Get all tasks in the target column (excluding the task being moved)
     const targetColumnTasks = await ctx.db
       .query("tasks")
       .filter(q => 
         q.and(
           q.eq(q.field("workspaceId"), task.workspaceId),
           q.eq(q.field("status"), newStatus),
-          q.neq(q.field("_id"), taskId) // Exclude the moved task
+          q.neq(q.field("_id"), taskId)
         )
       )
-      .order("asc")
       .collect();
     
-    // Reorder target column tasks to make space
-    const roundedNewOrder = Math.round(newOrder);
-    for (const targetTask of targetColumnTasks) {
-      if (targetTask.order >= roundedNewOrder) {
-        await ctx.db.patch(targetTask._id, {
-          order: targetTask.order + 1,
-        });
+    // Sort tasks by order
+    const sortedTargetTasks = targetColumnTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
+    
+    // Calculate the final order value based on the drop position
+    let finalOrder: number;
+    
+    if (sortedTargetTasks.length === 0) {
+      // Empty column - use the base order
+      finalOrder = MIN_ORDER;
+    } else if (newOrder <= 0) {
+      // Dropped at the beginning
+      const firstTask = sortedTargetTasks[0];
+      finalOrder = Math.max(firstTask.order - ORDER_GAP, MIN_ORDER);
+    } else if (newOrder >= sortedTargetTasks.length) {
+      // Dropped at the end
+      const lastTask = sortedTargetTasks[sortedTargetTasks.length - 1];
+      finalOrder = lastTask.order + ORDER_GAP;
+    } else {
+      // Dropped between two tasks
+      const dropIndex = Math.floor(newOrder);
+      const prevTask = sortedTargetTasks[dropIndex - 1];
+      const nextTask = sortedTargetTasks[dropIndex];
+      
+      if (prevTask && nextTask) {
+        // Calculate the midpoint between the two tasks
+        finalOrder = Math.floor((prevTask.order + nextTask.order) / 2);
+        
+        // Check if we have enough gap, if not, we need to normalize
+        if (nextTask.order - prevTask.order < 2) {
+          console.log(`[REORDER] Insufficient gap between orders, normalizing column ${newStatus}`);
+          await normalizeColumnOrders(ctx, task.workspaceId, newStatus);
+          
+          // Recalculate after normalization
+          const refreshedTasks = await ctx.db
+            .query("tasks")
+            .filter(q => 
+              q.and(
+                q.eq(q.field("workspaceId"), task.workspaceId),
+                q.eq(q.field("status"), newStatus),
+                q.neq(q.field("_id"), taskId)
+              )
+            )
+            .collect();
+          
+          const refreshedSorted = refreshedTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
+          const refreshedPrev = refreshedSorted[dropIndex - 1];
+          const refreshedNext = refreshedSorted[dropIndex];
+          
+          if (refreshedPrev && refreshedNext) {
+            finalOrder = Math.floor((refreshedPrev.order + refreshedNext.order) / 2);
+          } else {
+            finalOrder = MIN_ORDER + (dropIndex * ORDER_GAP);
+          }
+        }
+      } else {
+        // Fallback to position-based calculation
+        finalOrder = MIN_ORDER + (dropIndex * ORDER_GAP);
       }
     }
     
-    console.log(`Task ${taskId} successfully moved to ${newStatus}:${roundedNewOrder}`);
+    console.log(`[REORDER] Final order for task ${taskId}: ${finalOrder}`);
+    
+    // Update the task with the new status and order
+    await ctx.db.patch(taskId, {
+      status: newStatus,
+      order: finalOrder,
+      updatedAt: new Date().toISOString(),
+    });
+    
+    // Verify no duplicate orders exist
+    const allTasksInColumn = await ctx.db
+      .query("tasks")
+      .filter(q => 
+        q.and(
+          q.eq(q.field("workspaceId"), task.workspaceId),
+          q.eq(q.field("status"), newStatus)
+        )
+      )
+      .collect();
+    
+    const orderCounts = new Map<number, number>();
+    for (const t of allTasksInColumn) {
+      const count = orderCounts.get(t.order) || 0;
+      orderCounts.set(t.order, count + 1);
+    }
+    
+    // Check for duplicates
+    const duplicates = Array.from(orderCounts.entries()).filter(([_, count]) => count > 1);
+    if (duplicates.length > 0) {
+      console.error(`[REORDER] Duplicate orders detected in ${newStatus}:`, duplicates);
+      // Force normalization if duplicates are found
+      await normalizeColumnOrders(ctx, task.workspaceId, newStatus);
+    }
+    
+    console.log(`[REORDER] Task ${taskId} successfully moved to ${newStatus}:${finalOrder}`);
+  },
+});
+
+// Helper function to normalize orders in a column
+async function normalizeColumnOrders(
+  ctx: any,
+  workspaceId: string,
+  status: "todo" | "in_progress" | "done"
+) {
+  console.log(`[NORMALIZE] Normalizing orders for column ${status}`);
+  
+  const tasks = await ctx.db
+    .query("tasks")
+    .filter((q: any) => 
+      q.and(
+        q.eq(q.field("workspaceId"), workspaceId),
+        q.eq(q.field("status"), status)
+      )
+    )
+    .collect();
+  
+  // Sort by current order
+  const sortedTasks = tasks.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+  
+  // Reassign orders with proper gaps
+  for (let i = 0; i < sortedTasks.length; i++) {
+    const newOrder = MIN_ORDER + (i * ORDER_GAP);
+    await ctx.db.patch(sortedTasks[i]._id, {
+      order: newOrder,
+    });
+  }
+  
+  console.log(`[NORMALIZE] Normalized ${sortedTasks.length} tasks in column ${status}`);
+}
+
+// Mutation to normalize all columns in a workspace (useful for fixing order issues)
+export const normalizeAllColumns = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+  },
+  handler: async (ctx, args) => {
+    // Verify authentication
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    
+    // Verify user has access to this workspace
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth0Id", (q) => q.eq("auth0Id", identity.subject))
+      .first();
+    
+    if (!user || user.workspaceId !== args.workspaceId) {
+      throw new Error("Access denied to this workspace");
+    }
+    
+    console.log(`[NORMALIZE ALL] Starting normalization for workspace ${args.workspaceId}`);
+    
+    // Normalize each column
+    const statuses: Array<"todo" | "in_progress" | "done"> = ["todo", "in_progress", "done"];
+    for (const status of statuses) {
+      await normalizeColumnOrders(ctx, args.workspaceId, status);
+    }
+    
+    console.log(`[NORMALIZE ALL] Completed normalization for workspace ${args.workspaceId}`);
+  },
+});
+
+// Debug query to check task orders
+export const getTaskOrders = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+  },
+  handler: async (ctx, args) => {
+    // Verify authentication
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    
+    // Verify user has access to this workspace
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth0Id", (q) => q.eq("auth0Id", identity.subject))
+      .first();
+    
+    if (!user || user.workspaceId !== args.workspaceId) {
+      throw new Error("Access denied to this workspace");
+    }
+    
+    const tasks = await ctx.db
+      .query("tasks")
+      .filter(q => q.eq(q.field("workspaceId"), args.workspaceId))
+      .collect();
+    
+    // Group by status and sort by order
+    const tasksByStatus = {
+      todo: tasks.filter(t => t.status === "todo").sort((a, b) => a.order - b.order),
+      in_progress: tasks.filter(t => t.status === "in_progress").sort((a, b) => a.order - b.order),
+      done: tasks.filter(t => t.status === "done").sort((a, b) => a.order - b.order),
+    };
+    
+    // Return simplified data for debugging
+    return {
+      todo: tasksByStatus.todo.map(t => ({ id: t._id, title: t.title, order: t.order })),
+      in_progress: tasksByStatus.in_progress.map(t => ({ id: t._id, title: t.title, order: t.order })),
+      done: tasksByStatus.done.map(t => ({ id: t._id, title: t.title, order: t.order })),
+    };
   },
 });

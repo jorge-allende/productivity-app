@@ -10,6 +10,8 @@ import { useDashboardContext } from '../contexts/DashboardContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ErrorHandler } from '../utils/errorHandling';
+import { useDevTools } from '../utils/devTools';
+import { TaskOrderDebugger } from '../components/dev/TaskOrderDebugger';
 
 // Using require for api to avoid TypeScript depth issues with Convex queries
 const { api } = require('../convex/_generated/api');
@@ -38,6 +40,7 @@ export const Dashboard: React.FC = () => {
   const { filters, setAddTaskCallback } = useDashboardContext();
   const { currentWorkspace } = useWorkspace();
   const { currentUser } = useAuth();
+  const { showOrderDebugger } = useDevTools();
   
   // Convex queries and mutations
   const convexTasks = useQuery(api.tasks.getTasks, 
@@ -330,6 +333,10 @@ export const Dashboard: React.FC = () => {
           task={selectedTask}
           onSave={handleTaskUpdate}
         />
+      )}
+
+      {process.env.NODE_ENV === 'development' && showOrderDebugger && (
+        <TaskOrderDebugger />
       )}
     </div>
   );

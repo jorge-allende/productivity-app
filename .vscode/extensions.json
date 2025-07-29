@@ -1,0 +1,18 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "dsznajder.es7-react-js-snippets",
+    "eamodio.gitlens",
+    "usernamehw.errorlens",
+    "wayou.vscode-todo-highlight",
+    "ms-vscode.live-server",
+    "ritwickdey.liveserver",
+    "rangav.vscode-thunder-client",
+    "ms-vsliveshare.vsliveshare",
+    "naumovs.color-highlight",
+    "formulahendry.auto-rename-tag",
+    "pranaygp.vscode-css-peek"
+  ]
+}

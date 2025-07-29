@@ -197,38 +197,41 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       handleSortModeChange(targetColumnId, 'custom');
     }
 
-    // Calculate new order using integer-based system
-    let newOrder: number;
+    // Calculate new order - pass the drop index to backend
+    // The backend will handle the actual order calculation with proper gap-based system
+    let dropIndex: number;
+    
     if (overId === targetColumnId) {
-      // Dropped on empty column
-      newOrder = targetTasks.length > 0 ? Math.max(...targetTasks.map(t => t.order)) + 1 : 1;
+      // Dropped on empty column or at the end
+      dropIndex = targetTasks.length;
     } else {
+      // Find the position where the task was dropped
       const overTask = targetTasks.find(task => task._id === overId);
       if (overTask) {
         const overIndex = targetTasks.findIndex(task => task._id === overId);
         
-        // If moving within the same column, use more sophisticated logic
+        // If moving within the same column, adjust index based on direction
         if (activeTask.columnId === targetColumnId) {
           const activeIndex = targetTasks.findIndex(task => task._id === active.id);
           if (activeIndex < overIndex) {
-            // Moving down: insert before the target task
-            newOrder = overTask.order;
+            // Moving down: place after the over task
+            dropIndex = overIndex;
           } else {
-            // Moving up: insert after the target task  
-            newOrder = overTask.order + 1;
+            // Moving up: place before the over task
+            dropIndex = overIndex;
           }
         } else {
-          // Moving to different column: insert before the target task
-          newOrder = overTask.order;
+          // Moving to different column: place before the over task
+          dropIndex = overIndex;
         }
       } else {
         // Fallback: append to end
-        newOrder = targetTasks.length > 0 ? Math.max(...targetTasks.map(t => t.order)) + 1 : 1;
+        dropIndex = targetTasks.length;
       }
     }
     
-    // Ensure we always use integer orders
-    newOrder = Math.max(1, Math.round(newOrder));
+    // Pass the drop index as the newOrder - backend will calculate actual order value
+    const newOrder = dropIndex;
 
     onTaskMove(activeTask._id, targetColumnId, newOrder);
   };
