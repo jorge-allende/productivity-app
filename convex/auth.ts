@@ -1,6 +1,14 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+// Helper function to get clean name for workspace creation
+function getCleanName(name: string): string {
+  if (name.includes('@')) {
+    return name.split('@')[0];
+  }
+  return name.split(' ')[0] || name;
+}
+
 // Helper to get current user from Auth0 token
 export const getCurrentUser = query({
   args: { auth0Id: v.optional(v.string()) },
@@ -68,7 +76,7 @@ export const syncUser = mutation({
     let workspaceId;
     try {
       workspaceId = await ctx.db.insert("workspaces", {
-        name: args.workspaceName || `${args.name}'s Workspace`,
+        name: args.workspaceName || `${getCleanName(args.name)}'s Workspace`,
         createdBy: userId,
         plan: "free",
         createdAt: new Date().toISOString(),
