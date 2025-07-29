@@ -114,12 +114,11 @@ describe('CalendarWidget', () => {
   });
 
   it('should navigate to previous month', async () => {
-    const user = userEvent.setup();
     const { container } = render(<CalendarWidget tasks={mockTasks} />);
 
     // Find the button containing ChevronLeft icon
     const buttons = container.querySelectorAll('button');
-    if (buttons.length > 0) await user.click(buttons[0]);
+    if (buttons.length > 0) await userEvent.click(buttons[0]);
 
     // The CalendarWidget updates its internal state
     // We can verify the component still renders properly
@@ -127,12 +126,11 @@ describe('CalendarWidget', () => {
   });
 
   it('should navigate to next month', async () => {
-    const user = userEvent.setup();
     const { container } = render(<CalendarWidget tasks={mockTasks} />);
 
     // Find all buttons and click the second one (next button)
     const buttons = container.querySelectorAll('button');
-    if (buttons.length > 1) await user.click(buttons[1]);
+    if (buttons.length > 1) await userEvent.click(buttons[1]);
 
     // The CalendarWidget updates its internal state
     // We can verify the component still renders properly
@@ -140,14 +138,13 @@ describe('CalendarWidget', () => {
   });
 
   it('should handle click on date', async () => {
-    const user = userEvent.setup();
     render(<CalendarWidget tasks={mockTasks} />);
 
     // Click on today
     const today = new Date().getDate().toString();
     const todayElements = screen.getAllByText(today);
     
-    await user.click(todayElements[0]);
+    await userEvent.click(todayElements[0]);
 
     // The CalendarWidget internally handles date clicks by showing a modal
     // We can't test the modal here as it's part of the CalendarWidget implementation
