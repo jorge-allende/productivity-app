@@ -6,21 +6,21 @@ export const getTasks = query({
     workspaceId: v.id("workspaces"),
   },
   handler: async (ctx, args) => {
-    // TODO: Add authentication check
-    // const user = await ctx.auth.getUserIdentity();
-    // if (!user) throw new Error("Not authenticated");
+    // Verify authentication
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
     
     // Verify user has access to this workspace
-    // const membership = await ctx.db
-    //   .query("users")
-    //   .filter(q => 
-    //     q.and(
-    //       q.eq(q.field("email"), user.email),
-    //       q.eq(q.field("workspaceId"), args.workspaceId)
-    //     )
-    //   )
-    //   .first();
-    // if (!membership) throw new Error("Access denied");
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth0Id", (q) => q.eq("auth0Id", identity.subject))
+      .first();
+    
+    if (!user || user.workspaceId !== args.workspaceId) {
+      throw new Error("Access denied to this workspace");
+    }
     
     return await ctx.db
       .query("tasks")
@@ -43,7 +43,21 @@ export const createTask = mutation({
     assignedUsers: v.array(v.id("users")),
   },
   handler: async (ctx, args) => {
-    // TODO: Add authentication check
+    // Verify authentication
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    
+    // Verify user has access to this workspace
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth0Id", (q) => q.eq("auth0Id", identity.subject))
+      .first();
+    
+    if (!user || user.workspaceId !== args.workspaceId) {
+      throw new Error("Access denied to this workspace");
+    }
     
     const tasks = await ctx.db
       .query("tasks")
@@ -80,7 +94,27 @@ export const updateTask = mutation({
     order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // TODO: Add authentication check and verify task belongs to user's workspace
+    // Verify authentication
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    
+    // Get the task to verify workspace access
+    const task = await ctx.db.get(args.id);
+    if (!task) {
+      throw new Error("Task not found");
+    }
+    
+    // Verify user has access to the task's workspace
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth0Id", (q) => q.eq("auth0Id", identity.subject))
+      .first();
+    
+    if (!user || user.workspaceId !== task.workspaceId) {
+      throw new Error("Access denied to this task");
+    }
     
     const { id, ...updates } = args;
     await ctx.db.patch(id, {
@@ -95,7 +129,27 @@ export const deleteTask = mutation({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    // TODO: Add authentication check and verify task belongs to user's workspace
+    // Verify authentication
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    
+    // Get the task to verify workspace access
+    const task = await ctx.db.get(args.id);
+    if (!task) {
+      throw new Error("Task not found");
+    }
+    
+    // Verify user has access to the task's workspace
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth0Id", (q) => q.eq("auth0Id", identity.subject))
+      .first();
+    
+    if (!user || user.workspaceId !== task.workspaceId) {
+      throw new Error("Access denied to this task");
+    }
     
     await ctx.db.delete(args.id);
   },
@@ -108,13 +162,27 @@ export const reorderTasks = mutation({
     newOrder: v.number(),
   },
   handler: async (ctx, args) => {
-    // TODO: Add authentication check and verify task belongs to user's workspace
+    // Verify authentication
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
     
     const { taskId, newStatus, newOrder } = args;
     
     // Get the task to find its workspace and current status
     const task = await ctx.db.get(taskId);
     if (!task) throw new Error("Task not found");
+    
+    // Verify user has access to the task's workspace
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth0Id", (q) => q.eq("auth0Id", identity.subject))
+      .first();
+    
+    if (!user || user.workspaceId !== task.workspaceId) {
+      throw new Error("Access denied to this task");
+    }
     
     const oldStatus = task.status;
     const oldOrder = task.order;

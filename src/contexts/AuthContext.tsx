@@ -4,7 +4,7 @@ import authService from '../services/auth.service';
 import { AuthUser, AuthState, LoginCredentials, SignupCredentials, AuthError } from '../types/auth.types';
 import { useWorkspace } from './WorkspaceContext';
 
-// Import api with require to avoid TypeScript depth issues
+// Using require for api to avoid TypeScript depth issues with Convex mutations
 const { api } = require('../convex/_generated/api');
 
 interface AuthContextType extends AuthState {
@@ -41,8 +41,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const syncUser = useMutation(api.auth.syncUser);
   const joinWorkspaceViaInvitation = useMutation(api.auth.joinWorkspaceViaInvitation);
   
-  // Check if we're in dev mode
-  const isDevMode = process.env.REACT_APP_DEV_MODE === 'true';
+  // Check if we're in dev mode with additional safeguards
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isDevModeEnabled = process.env.REACT_APP_DEV_MODE === 'true';
+  const isDevMode = isDevelopment && isDevModeEnabled;
+  
+  // Prevent dev mode in production builds
+  if (!isDevelopment && isDevModeEnabled) {
+    console.error('SECURITY WARNING: Dev mode cannot be enabled in production builds');
+  }
   
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: isDevMode,
@@ -61,7 +68,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (isDevMode) {
       setCurrentWorkspace(MOCK_WORKSPACE);
-      console.log('🚀 Dev Mode: Authentication bypassed');
+      console.warn('⚠️ Development Mode: Authentication bypassed - DO NOT USE IN PRODUCTION');
     }
   }, [isDevMode, setCurrentWorkspace]);
 
@@ -350,7 +357,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [logout, isDevMode]);
 
   const getAccessToken = useCallback(() => {
-    if (isDevMode) return 'dev-token';
+    if (isDevMode) {
+      // Generate a more secure dev token with timestamp
+      const timestamp = Date.now();
+      const devToken = `dev-token-${timestamp}-${Math.random().toString(36).substring(2, 11)}`;
+      console.warn('⚠️ Using development token:', devToken);
+      return devToken;
+    }
     return authService.getAccessToken();
   }, [isDevMode]);
 

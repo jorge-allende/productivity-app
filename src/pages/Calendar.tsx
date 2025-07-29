@@ -23,8 +23,8 @@ import { TaskCard } from '../components/kanban/TaskCard';
 import { DroppableCalendarDay } from '../components/calendar/DroppableCalendarDay';
 import { TaskEditModal } from '../components/ui/TaskEditModal';
 import { useWorkspace } from '../contexts/WorkspaceContext';
-
-// Import api with require to avoid TypeScript depth issues
+import { ErrorHandler } from '../utils/errorHandling';
+// Using require for api to avoid TypeScript depth issues with Convex queries
 const { api } = require('../convex/_generated/api');
 
 type ViewMode = 'month' | 'agenda';
@@ -246,7 +246,7 @@ export const Calendar: React.FC = () => {
             dueDate: droppedDate.toISOString()
           });
         } catch (error) {
-          console.error('Failed to update task due date:', error);
+          ErrorHandler.handle(error, 'Failed to update task due date');
         }
       }
     }
@@ -275,7 +275,10 @@ export const Calendar: React.FC = () => {
   };
 
   const handleTaskUpdate = async (updatedTask: Task, commentOnly?: boolean) => {
-    if (!currentWorkspace) return;
+    if (!currentWorkspace) {
+      ErrorHandler.handle(new Error('No workspace selected'), 'Please select a workspace');
+      return;
+    }
     
     try {
       // If it's not comment-only, update the task
@@ -297,7 +300,7 @@ export const Calendar: React.FC = () => {
       }
       // TODO: Handle comment updates when comment API is integrated
     } catch (error) {
-      console.error('Failed to update task:', error);
+      ErrorHandler.handle(error, 'Failed to update task. Please try again.');
     }
   };
 
