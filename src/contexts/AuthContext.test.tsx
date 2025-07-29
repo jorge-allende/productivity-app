@@ -55,7 +55,7 @@ const mockToast = toast as jest.Mocked<typeof toast>;
 
 // Test component that uses the auth context
 const TestComponent = () => {
-  const { user, isLoading, error, logout } = useAuth();
+  const { user, isLoading, error } = useAuth();
   
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;

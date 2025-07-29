@@ -1,7 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { DndContext } from '@dnd-kit/core';
 import { KanbanBoard } from './kanban/KanbanBoard';
 import { Task } from '../types/Task';
 import { Column } from '../types/Column';

@@ -1,6 +1,8 @@
 // Development tools and utilities
 // Only active when REACT_APP_DEV_MODE is true
 
+import { useState, useEffect } from 'react';
+
 export const isDevelopment = process.env.NODE_ENV === 'development';
 export const isDevMode = process.env.REACT_APP_DEV_MODE === 'true';
 
@@ -146,8 +148,6 @@ if (isDevMode && typeof window !== 'undefined') {
 }
 
 // React hook for dev tools
-import { useState, useEffect } from 'react';
-
 export const useDevTools = () => {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [showOrderDebugger, setShowOrderDebugger] = useState(false);

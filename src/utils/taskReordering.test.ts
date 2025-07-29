@@ -240,21 +240,23 @@ describe('Task Reordering Logic', () => {
       
       // At some point, gaps will be too small
       // Check if any adjacent tasks have insufficient gaps
-      let needsNormalization = false;
+      let hasSmallGaps = false;
       for (let i = 1; i < tasks.length; i++) {
         if (tasks[i].order - tasks[i - 1].order < 2) {
-          needsNormalization = true;
+          hasSmallGaps = true;
           break;
         }
       }
       
-      if (needsNormalization) {
-        tasks = normalizeTaskOrders(tasks);
-        
-        // After normalization, all gaps should be ORDER_GAP
-        for (let i = 1; i < tasks.length; i++) {
-          expect(tasks[i].order - tasks[i - 1].order).toBe(ORDER_GAP);
-        }
+      // If we found small gaps, normalize and verify
+      expect(hasSmallGaps).toBe(true); // We should have created small gaps after multiple insertions
+      
+      // Normalize the tasks
+      const normalizedTasks = normalizeTaskOrders(tasks);
+      
+      // After normalization, all gaps should be ORDER_GAP
+      for (let i = 1; i < normalizedTasks.length; i++) {
+        expect(normalizedTasks[i].order - normalizedTasks[i - 1].order).toBe(ORDER_GAP);
       }
     });
 
