@@ -155,7 +155,18 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleTaskMove = async (taskId: string, newColumnId: string, newOrder: number) => {
-    if (!currentWorkspace) return;
+    if (!currentWorkspace) {
+      console.error('No workspace selected');
+      return;
+    }
+    
+    const task = tasks.find(t => t._id === taskId);
+    if (!task) {
+      console.error('Task not found:', taskId);
+      return;
+    }
+    
+    console.log(`Moving task "${task.title}" from ${task.columnId} to ${newColumnId} with order ${newOrder}`);
     
     try {
       await reorderTasksMutation({
@@ -163,8 +174,11 @@ export const Dashboard: React.FC = () => {
         newStatus: columnIdToStatus(newColumnId),
         newOrder: newOrder
       });
+      console.log(`Successfully moved task "${task.title}"`);
     } catch (error) {
       console.error('Failed to move task:', error);
+      // TODO: Show user-friendly error notification
+      // For now, just log the error - task will revert due to Convex reactivity
     }
   };
 

@@ -197,30 +197,38 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       handleSortModeChange(targetColumnId, 'custom');
     }
 
-    // Calculate new order
+    // Calculate new order using integer-based system
     let newOrder: number;
     if (overId === targetColumnId) {
       // Dropped on empty column
-      newOrder = targetTasks.length > 0 ? targetTasks[targetTasks.length - 1].order + 1 : 1;
+      newOrder = targetTasks.length > 0 ? Math.max(...targetTasks.map(t => t.order)) + 1 : 1;
     } else {
       const overTask = targetTasks.find(task => task._id === overId);
       if (overTask) {
         const overIndex = targetTasks.findIndex(task => task._id === overId);
-        newOrder = overTask.order;
         
-        // If moving within the same column, adjust order calculation
+        // If moving within the same column, use more sophisticated logic
         if (activeTask.columnId === targetColumnId) {
           const activeIndex = targetTasks.findIndex(task => task._id === active.id);
           if (activeIndex < overIndex) {
+            // Moving down: insert before the target task
             newOrder = overTask.order;
           } else {
-            newOrder = overTask.order + 0.5;
+            // Moving up: insert after the target task  
+            newOrder = overTask.order + 1;
           }
+        } else {
+          // Moving to different column: insert before the target task
+          newOrder = overTask.order;
         }
       } else {
-        newOrder = targetTasks.length > 0 ? targetTasks[targetTasks.length - 1].order + 1 : 1;
+        // Fallback: append to end
+        newOrder = targetTasks.length > 0 ? Math.max(...targetTasks.map(t => t.order)) + 1 : 1;
       }
     }
+    
+    // Ensure we always use integer orders
+    newOrder = Math.max(1, Math.round(newOrder));
 
     onTaskMove(activeTask._id, targetColumnId, newOrder);
   };

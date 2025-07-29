@@ -112,36 +112,70 @@ export const reorderTasks = mutation({
     
     const { taskId, newStatus, newOrder } = args;
     
-    // Get the task to find its workspace
+    // Get the task to find its workspace and current status
     const task = await ctx.db.get(taskId);
     if (!task) throw new Error("Task not found");
     
-    // Get all tasks in the target column
-    const tasksInColumn = await ctx.db
+    const oldStatus = task.status;
+    const oldOrder = task.order;
+    
+    console.log(`Moving task ${taskId} from ${oldStatus}:${oldOrder} to ${newStatus}:${newOrder}`);
+    
+    // First, update the moved task
+    await ctx.db.patch(taskId, {
+      status: newStatus,
+      order: Math.round(newOrder), // Use integer orders to avoid floating point issues
+      updatedAt: new Date().toISOString(),
+    });
+    
+    // If moving to a different column, we need to handle both source and target columns
+    if (oldStatus !== newStatus) {
+      // Get tasks in the source column (excluding the moved task)
+      const sourceColumnTasks = await ctx.db
+        .query("tasks")
+        .filter(q => 
+          q.and(
+            q.eq(q.field("workspaceId"), task.workspaceId),
+            q.eq(q.field("status"), oldStatus),
+            q.neq(q.field("_id"), taskId)
+          )
+        )
+        .order("asc")
+        .collect();
+      
+      // Reorder source column tasks to fill the gap
+      for (const sourceTask of sourceColumnTasks) {
+        if (sourceTask.order > oldOrder) {
+          await ctx.db.patch(sourceTask._id, {
+            order: sourceTask.order - 1,
+          });
+        }
+      }
+    }
+    
+    // Get tasks in the target column AFTER the moved task has been updated
+    const targetColumnTasks = await ctx.db
       .query("tasks")
       .filter(q => 
         q.and(
           q.eq(q.field("workspaceId"), task.workspaceId),
-          q.eq(q.field("status"), newStatus)
+          q.eq(q.field("status"), newStatus),
+          q.neq(q.field("_id"), taskId) // Exclude the moved task
         )
       )
       .order("asc")
       .collect();
     
-    // Update the moved task
-    await ctx.db.patch(taskId, {
-      status: newStatus,
-      order: newOrder,
-      updatedAt: new Date().toISOString(),
-    });
-    
-    // Reorder other tasks
-    for (const otherTask of tasksInColumn) {
-      if (otherTask._id !== taskId && otherTask.order >= newOrder) {
-        await ctx.db.patch(otherTask._id, {
-          order: otherTask.order + 1,
+    // Reorder target column tasks to make space
+    const roundedNewOrder = Math.round(newOrder);
+    for (const targetTask of targetColumnTasks) {
+      if (targetTask.order >= roundedNewOrder) {
+        await ctx.db.patch(targetTask._id, {
+          order: targetTask.order + 1,
         });
       }
     }
+    
+    console.log(`Task ${taskId} successfully moved to ${newStatus}:${roundedNewOrder}`);
   },
 });
