@@ -55,6 +55,8 @@ export const Dashboard: React.FC = () => {
   const tasks: Task[] = useMemo(() => {
     if (!convexTasks) return [];
     
+    console.log('Transforming tasks:', convexTasks.length, 'tasks from Convex');
+    
     return convexTasks.map((task: any): Task => ({
       _id: task._id,
       title: task.title,
@@ -171,6 +173,13 @@ export const Dashboard: React.FC = () => {
     }
     
     console.log(`Moving task "${task.title}" from ${task.columnId} to ${newColumnId} with order ${newOrder}`);
+    console.log('Current workspace ID:', currentWorkspace.id);
+    console.log('Task details before move:', {
+      _id: task._id,
+      title: task.title,
+      columnId: task.columnId,
+      order: task.order
+    });
     
     try {
       await reorderTasksMutation({
@@ -179,7 +188,12 @@ export const Dashboard: React.FC = () => {
         newOrder: newOrder
       });
       console.log(`Successfully moved task "${task.title}"`);
+      
+      // Log the tasks after mutation to see if they're being filtered out
+      console.log('Total tasks after move:', convexTasks?.length);
+      console.log('Filtered tasks after move:', tasks.length);
     } catch (error) {
+      console.error('Error moving task:', error);
       ErrorHandler.handle(error, 'Failed to move task. Please try again.');
     }
   };

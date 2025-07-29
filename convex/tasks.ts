@@ -27,6 +27,9 @@ export const getTasks = query({
       .filter(q => q.eq(q.field("workspaceId"), args.workspaceId))
       .collect();
     
+    console.log(`[GET_TASKS] Found ${tasks.length} tasks for workspace ${args.workspaceId}`);
+    console.log(`[GET_TASKS] User ${user.auth0Id} accessing workspace ${user.workspaceId}`);
+    
     // Sort tasks by order within each status to ensure correct display
     // This provides an additional safeguard against any ordering issues
     return tasks.sort((a, b) => {
@@ -218,6 +221,7 @@ export const reorderTasks = mutation({
     const oldOrder = task.order;
     
     console.log(`[REORDER] Moving task ${taskId} from ${oldStatus}:${oldOrder} to ${newStatus} at position ${newOrder}`);
+    console.log(`[REORDER] Task workspace: ${task.workspaceId}, User workspace: ${user.workspaceId}`);
     
     // Get all tasks in the target column (excluding the task being moved)
     const targetColumnTasks = await ctx.db
@@ -299,6 +303,18 @@ export const reorderTasks = mutation({
       order: finalOrder,
       updatedAt: new Date().toISOString(),
     });
+    
+    // Verify the task still exists and has correct workspace
+    const updatedTask = await ctx.db.get(taskId);
+    if (!updatedTask) {
+      console.error(`[REORDER] ERROR: Task ${taskId} disappeared after update!`);
+    } else {
+      console.log(`[REORDER] Task ${taskId} verified after update:`, {
+        workspaceId: updatedTask.workspaceId,
+        status: updatedTask.status,
+        order: updatedTask.order
+      });
+    }
     
     // Verify no duplicate orders exist
     const allTasksInColumn = await ctx.db
