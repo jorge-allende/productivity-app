@@ -102,11 +102,20 @@ describe('safeLocalStorage', () => {
 
     it('handles quota exceeded errors', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      const error = new Error('QuotaExceededError');
-      Object.defineProperty(error, 'name', {
-        value: 'QuotaExceededError',
-        writable: false
-      });
+      
+      // Create a mock DOMException for quota exceeded
+      class MockDOMException extends Error {
+        constructor(message: string) {
+          super(message);
+          this.name = 'QuotaExceededError';
+        }
+      }
+      
+      // Mock global DOMException if it doesn't exist
+      const originalDOMException = global.DOMException;
+      global.DOMException = MockDOMException as any;
+      
+      const error = new MockDOMException('QuotaExceededError');
       
       jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
         throw error;
@@ -115,12 +124,21 @@ describe('safeLocalStorage', () => {
       const success = safeLocalStorage.setItem('test-key', 'value');
       
       expect(success).toBe(false);
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Error writing to localStorage'),
+      
+      // Verify console.error was called twice
+      expect(consoleSpy).toHaveBeenCalledTimes(2);
+      
+      // First call should contain the error message
+      expect(consoleSpy).toHaveBeenNthCalledWith(1,
+        expect.stringContaining('Error writing to localStorage key "test-key"'),
         expect.any(Error)
       );
-      expect(consoleSpy).toHaveBeenCalledWith('localStorage quota exceeded');
       
+      // Second call should be the quota exceeded message
+      expect(consoleSpy).toHaveBeenNthCalledWith(2, 'localStorage quota exceeded');
+      
+      // Restore
+      global.DOMException = originalDOMException;
       consoleSpy.mockRestore();
     });
 

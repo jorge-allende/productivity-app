@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { ConvexConnectionStatus, useConvexStatus } from './ConvexConnectionStatus';
 import { useConvex } from 'convex/react';
 
@@ -19,7 +19,9 @@ describe('ConvexConnectionStatus', () => {
   });
   
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
     jest.useRealTimers();
   });
 
@@ -63,7 +65,9 @@ describe('ConvexConnectionStatus', () => {
     rerender(<ConvexConnectionStatus />);
     
     // Advance timers to trigger connection check
-    jest.advanceTimersByTime(5000);
+    act(() => {
+      jest.advanceTimersByTime(5000);
+    });
     
     // The component logic may prevent showing connected immediately, 
     // so we'll just verify the component renders without error
@@ -81,7 +85,9 @@ describe('ConvexConnectionStatus', () => {
     render(<ConvexConnectionStatus />);
     
     // Advance timers to trigger connection check
-    jest.advanceTimersByTime(5000);
+    act(() => {
+      jest.advanceTimersByTime(5000);
+    });
     
     // The component should handle errors gracefully without crashing
     // Since the component may not show error immediately, we just check it renders
