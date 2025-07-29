@@ -41,20 +41,23 @@ function normalizeTaskOrders(tasks: Task[]): Task[] {
 }
 
 describe('Task Reordering Logic', () => {
-  const createTask = (id: string, status: Task['status'], order: number): Task => ({
+  const createTask = (id: string, columnId: string, order: number): Task => ({
     _id: id,
-    workspaceId: 'workspace1',
     title: `Task ${id}`,
     description: '',
-    status,
     priority: 'medium',
     tagColor: '#000',
     tagName: 'Task',
     assignedUsers: [],
     attachments: [],
     order,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
+    createdAt: new Date('2024-01-01T00:00:00Z'),
+    updatedAt: new Date('2024-01-01T00:00:00Z'),
+    columnId,
+    createdBy: 'user1',
+    watchers: [],
+    comments: [],
+    mentions: [],
   });
 
   describe('calculateNewOrder', () => {

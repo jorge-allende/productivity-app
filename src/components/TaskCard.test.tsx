@@ -32,43 +32,52 @@ const mockUseSortable = useSortable as jest.MockedFunction<typeof useSortable>;
 describe('TaskCard', () => {
   const mockTask: Task = {
     _id: '1',
-    workspaceId: 'workspace1',
     title: 'Test Task',
     description: 'This is a test task description',
-    status: 'todo',
     priority: 'high',
     tagColor: '#FF6B6B',
     tagName: 'Bug',
     assignedUsers: ['user1', 'user2'],
-    attachments: ['file1.pdf', 'file2.doc'],
+    attachments: [
+      { name: 'file1.pdf', url: '/files/file1.pdf', type: 'application/pdf' },
+      { name: 'file2.doc', url: '/files/file2.doc', type: 'application/msword' }
+    ],
     order: 1000,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
+    createdAt: new Date('2024-01-01T00:00:00Z'),
+    updatedAt: new Date('2024-01-01T00:00:00Z'),
     dueDate: '2024-12-31',
+    columnId: 'todo',
+    createdBy: 'user1',
+    watchers: [],
+    comments: [],
+    mentions: [],
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseSortable.mockReturnValue({
-      attributes: { role: 'button' },
+      attributes: { 
+        role: 'button',
+        tabIndex: 0,
+        'aria-describedby': undefined,
+        'aria-disabled': false,
+        'aria-roledescription': 'sortable',
+        'aria-pressed': false 
+      } as any,
       listeners: {},
       setNodeRef: jest.fn(),
       transform: null,
-      transition: null,
+      transition: undefined,
       isDragging: false,
       isSorting: false,
       over: null,
       overIndex: -1,
       index: 0,
       items: [],
-      previousItems: [],
+      data: { sortable: { containerId: 'test-container', items: [], index: 0 } },
+      newIndex: 0,
       active: null,
       activeIndex: -1,
-      activatorEvent: null,
-      collisions: null,
-      droppableContainers: new Map(),
-      draggableNodes: new Map(),
-      measuringScheduled: false,
       rect: { current: null },
       node: { current: null },
       isOver: false,
@@ -163,7 +172,14 @@ describe('TaskCard', () => {
 
   it('should apply dragging styles when being dragged', () => {
     mockUseSortable.mockReturnValue({
-      attributes: { role: 'button' },
+      attributes: { 
+        role: 'button',
+        tabIndex: 0,
+        'aria-describedby': undefined,
+        'aria-disabled': false,
+        'aria-roledescription': 'sortable',
+        'aria-pressed': false 
+      } as any,
       listeners: {},
       setNodeRef: jest.fn(),
       transform: { x: 10, y: 20, scaleX: 1, scaleY: 1 },
@@ -174,14 +190,10 @@ describe('TaskCard', () => {
       overIndex: -1,
       index: 0,
       items: [],
-      previousItems: [],
+      data: { sortable: { containerId: 'test-container', items: [], index: 0 } },
+      newIndex: 0,
       active: null,
       activeIndex: -1,
-      activatorEvent: null,
-      collisions: null,
-      droppableContainers: new Map(),
-      draggableNodes: new Map(),
-      measuringScheduled: false,
       rect: { current: null },
       node: { current: null },
       isOver: false,
@@ -226,18 +238,21 @@ describe('TaskCard', () => {
   it('should handle tasks with minimal data', () => {
     const minimalTask: Task = {
       _id: '2',
-      workspaceId: 'workspace1',
       title: 'Minimal Task',
       description: '',
-      status: 'todo',
       priority: 'low',
       tagColor: '#000000',
       tagName: 'Task',
       assignedUsers: [],
       attachments: [],
       order: 1000,
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z',
+      createdAt: new Date('2024-01-01T00:00:00Z'),
+      updatedAt: new Date('2024-01-01T00:00:00Z'),
+      columnId: 'todo',
+      createdBy: 'user1',
+      watchers: [],
+      comments: [],
+      mentions: [],
     };
 
     render(<TaskCard task={minimalTask} />);

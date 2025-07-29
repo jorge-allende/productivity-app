@@ -40,7 +40,7 @@ export const Dashboard: React.FC = () => {
   const { filters, setAddTaskCallback } = useDashboardContext();
   const { currentWorkspace } = useWorkspace();
   const { currentUser } = useAuth();
-  const { showTaskOrderDebugger } = useDevTools();
+  const { showOrderDebugger } = useDevTools();
   
   // Convex queries and mutations
   const convexTasks = useQuery(api.tasks.getTasks, 
@@ -335,7 +335,7 @@ export const Dashboard: React.FC = () => {
         />
       )}
 
-      {process.env.NODE_ENV === 'development' && showTaskOrderDebugger && (
+      {process.env.NODE_ENV === 'development' && showOrderDebugger && (
         <TaskOrderDebugger />
       )}
     </div>

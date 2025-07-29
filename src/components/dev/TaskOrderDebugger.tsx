@@ -1,11 +1,13 @@
 import React from 'react';
 import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
-import { Id } from '../../convex/_generated/dataModel';
-import { useAuth } from '../../contexts/AuthContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
+
+// Using require for api to avoid TypeScript depth issues with Convex
+const { api } = require('../../convex/_generated/api');
+type Id<T extends string> = string & { __tableName: T };
 
 export const TaskOrderDebugger: React.FC = () => {
-  const { currentWorkspace } = useAuth();
+  const { currentWorkspace } = useWorkspace();
   const taskOrders = useQuery(
     api.tasks.getTaskOrders, 
     currentWorkspace ? { workspaceId: currentWorkspace.id as Id<"workspaces"> } : "skip"
@@ -34,7 +36,7 @@ export const TaskOrderDebugger: React.FC = () => {
       <h3 className="text-sm font-semibold mb-2">Task Order Debug Info</h3>
       
       <div className="space-y-2 text-xs">
-        {Object.entries(taskOrders).map(([status, tasks]) => (
+        {Object.entries(taskOrders as Record<string, Array<{id: string, title: string, order: number}>>).map(([status, tasks]) => (
           <div key={status}>
             <h4 className="font-medium capitalize">{status.replace('_', ' ')}:</h4>
             <div className="ml-2">
