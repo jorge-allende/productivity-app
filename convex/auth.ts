@@ -160,6 +160,9 @@ export const getUserWorkspace = query({
     const user = await ctx.db.get(args.userId);
     if (!user) return null;
     
+    // Check if user has a workspaceId before trying to fetch it
+    if (!user.workspaceId) return null;
+    
     const workspace = await ctx.db.get(user.workspaceId);
     return workspace;
   },

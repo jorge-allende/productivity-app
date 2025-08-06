@@ -1,8 +1,8 @@
 # Productivity App Docker Makefile
 
 # Variables
-DOCKER_COMPOSE = docker-compose
-DOCKER_COMPOSE_PROD = docker-compose -f docker-compose.yml -f docker-compose.production.yml
+DOCKER_COMPOSE = docker-compose -f docker/docker-compose.yml
+DOCKER_COMPOSE_PROD = docker-compose -f docker/docker-compose.yml -f docker/docker-compose.production.yml
 APP_NAME = productivity-app
 
 # Default environment file

@@ -177,10 +177,9 @@ export const cancelInvitation = mutation({
 export const getWorkspaceUserStats = query({
   args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
-    const users = await ctx.db
-      .query("users")
-      .withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId))
-      .collect();
+    // Since workspaceId is optional and there's no index, we need to filter manually
+    const allUsers = await ctx.db.query("users").collect();
+    const users = allUsers.filter(user => user.workspaceId === args.workspaceId);
     
     const stats = {
       totalUsers: users.length,
