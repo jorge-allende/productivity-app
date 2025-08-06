@@ -1,0 +1,34 @@
+# Local development overrides
+# This file is automatically loaded by docker-compose and overrides values in docker-compose.yml
+version: '3.8'
+
+services:
+  frontend:
+    # Additional development settings
+    environment:
+      # Enable React DevTools
+      - REACT_APP_DEV_TOOLS=true
+      # Disable ESLint warnings in browser
+      - DISABLE_ESLINT_PLUGIN=true
+      # Fast refresh settings
+      - FAST_REFRESH=true
+    # Map additional development tools
+    volumes:
+      - ./.env.local:/app/.env.local:ro
+      # VS Code settings for container development
+      - ./.vscode:/app/.vscode:delegated
+    # Enable debugging
+    ports:
+      - "9229:9229"  # Node.js debugging port
+    command: npm start
+
+  convex-dev:
+    # Mount .env.local for Convex credentials
+    volumes:
+      - ./.env.local:/app/.env.local:ro
+      - ./package-lock.json:/app/package-lock.json:rw  # Allow write access for npm install
+      # Mount the user's home directory .convex folder for auth
+      - ~/.convex:/root/.convex:ro
+    # Load environment variables from .env.local
+    env_file:
+      - .env.local

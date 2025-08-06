@@ -24,3 +24,9 @@ yarn-error.log*
 
 # Local testing script
 test-before-push.sh
+
+# Environment variables
+.env
+
+# Claude AI agent configurations
+.claude/

@@ -1,0 +1,107 @@
+version: '3.8'
+
+# DEVELOPMENT ONLY - This configuration uses the development Convex deployment
+# Production is deployed via Vercel with different environment variables
+
+services:
+  # React Frontend Development Server
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: productivity-app-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount source code for hot-reloading
+      - ./src:/app/src:delegated
+      - ./public:/app/public:delegated
+      - ./convex:/app/convex:delegated
+      # Mount config files
+      - ./package.json:/app/package.json:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./tailwind.config.js:/app/tailwind.config.js:ro
+      - ./postcss.config.js:/app/postcss.config.js:ro
+      # Prevent node_modules from being overwritten
+      - /app/node_modules
+    environment:
+      # React development server settings
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - WDS_SOCKET_PORT=3000
+      # Application environment variables
+      - REACT_APP_CONVEX_URL=${REACT_APP_CONVEX_URL}
+      - REACT_APP_AUTH0_DOMAIN=${REACT_APP_AUTH0_DOMAIN}
+      - REACT_APP_AUTH0_CLIENT_ID=${REACT_APP_AUTH0_CLIENT_ID}
+      - REACT_APP_AUTH0_AUDIENCE=${REACT_APP_AUTH0_AUDIENCE}
+      - REACT_APP_AUTH0_REDIRECT_URI=${REACT_APP_AUTH0_REDIRECT_URI}
+      - REACT_APP_AUTH0_DB_CONNECTION=${REACT_APP_AUTH0_DB_CONNECTION}
+      # Node settings
+      - NODE_ENV=development
+    networks:
+      - productivity-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    stdin_open: true
+    tty: true
+
+  # Convex Dev Proxy (runs Convex CLI in container)
+  convex-dev:
+    image: node:20-alpine
+    container_name: productivity-app-convex
+    working_dir: /app
+    volumes:
+      - ./convex:/app/convex:delegated
+      - ./convex.json:/app/convex.json:rw
+      - ./package.json:/app/package.json:ro
+      - ./package-lock.json:/app/package-lock.json:rw
+      - ./docker-entrypoint-convex.sh:/app/docker-entrypoint-convex.sh:ro
+      - convex-node-modules:/app/node_modules
+    environment:
+      - CONVEX_DEPLOYMENT=${CONVEX_DEPLOYMENT}
+      - CONVEX_URL=${CONVEX_URL}
+    command: /app/docker-entrypoint-convex.sh
+    networks:
+      - productivity-network
+    depends_on:
+      - frontend
+
+  # Nginx Production Preview (optional - for testing production build)
+  nginx-preview:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: productivity-app-nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - REACT_APP_CONVEX_URL=${REACT_APP_CONVEX_URL}
+      - REACT_APP_AUTH0_DOMAIN=${REACT_APP_AUTH0_DOMAIN}
+      - REACT_APP_AUTH0_CLIENT_ID=${REACT_APP_AUTH0_CLIENT_ID}
+      - REACT_APP_AUTH0_AUDIENCE=${REACT_APP_AUTH0_AUDIENCE}
+      - REACT_APP_AUTH0_REDIRECT_URI=${REACT_APP_AUTH0_REDIRECT_URI}
+      - REACT_APP_AUTH0_DB_CONNECTION=${REACT_APP_AUTH0_DB_CONNECTION}
+    networks:
+      - productivity-network
+    profiles:
+      - production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  productivity-network:
+    driver: bridge
+
+volumes:
+  convex-node-modules:
