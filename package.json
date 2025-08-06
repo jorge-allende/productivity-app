@@ -46,7 +46,10 @@
     "ci:lint": "CI=true npx eslint src --ext .ts,.tsx --max-warnings 0",
     "ci:typecheck": "CI=true npm run typecheck",
     "ci:full": "CI=true ./scripts/test-ci-local.sh",
-    "ci:quick": "CI=true npm run typecheck && npm run lint"
+    "ci:quick": "CI=true npm run typecheck && npm run lint",
+    "validate": "./validate.sh",
+    "validate:full": "./scripts/pre-push-validation.sh",
+    "prepush": "npm run typecheck && npm run lint && npm test -- --watchAll=false --passWithNoTests"
   },
   "eslintConfig": {
     "extends": [
