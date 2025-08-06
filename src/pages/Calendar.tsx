@@ -23,6 +23,7 @@ import { TaskCard } from '../components/kanban/TaskCard';
 import { DroppableCalendarDay } from '../components/calendar/DroppableCalendarDay';
 import { TaskEditModal } from '../components/ui/TaskEditModal';
 import { useWorkspace } from '../contexts/WorkspaceContext';
+import { useAuth } from '../contexts/AuthContext';
 import { ErrorHandler } from '../utils/errorHandling';
 // Using require for api to avoid TypeScript depth issues with Convex queries
 const { api } = require('../convex/_generated/api');
@@ -41,6 +42,7 @@ const statusToColumnId = (status: 'todo' | 'in_progress' | 'done'): string => {
 
 export const Calendar: React.FC = () => {
   const { currentWorkspace } = useWorkspace();
+  const { currentUser } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedTasks, setSelectedTasks] = useState<Task[]>([]);
@@ -57,7 +59,10 @@ export const Calendar: React.FC = () => {
   
   // Convex queries and mutations
   const convexTasks = useQuery(api.tasks.getTasks, 
-    currentWorkspace ? { workspaceId: currentWorkspace.id as Id<"workspaces"> } : "skip"
+    currentWorkspace && currentUser ? { 
+      workspaceId: currentWorkspace.id as Id<"workspaces">,
+      auth0Id: currentUser.auth0Id
+    } : "skip"
   );
   const updateTaskMutation = useMutation(api.tasks.updateTask);
   
@@ -243,7 +248,8 @@ export const Calendar: React.FC = () => {
         try {
           await updateTaskMutation({
             id: activeTask._id as Id<"tasks">,
-            dueDate: droppedDate.toISOString()
+            dueDate: droppedDate.toISOString(),
+            auth0Id: currentUser?.auth0Id
           });
         } catch (error) {
           ErrorHandler.handle(error, 'Failed to update task due date');
@@ -294,6 +300,7 @@ export const Calendar: React.FC = () => {
           tagName: updatedTask.tagName,
           dueDate: updatedTask.dueDate,
           assignedUsers: updatedTask.assignedUsers as Id<"users">[],
+          auth0Id: currentUser?.auth0Id
         });
         setIsEditModalOpen(false);
         setSelectedTask(null);
