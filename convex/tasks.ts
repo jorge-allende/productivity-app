@@ -109,8 +109,9 @@ export const createTask = mutation({
     
     console.log(`Creating task in ${args.status} with order ${newOrder}`);
     
+    const { auth0Id, ...taskData } = args;
     return await ctx.db.insert("tasks", {
-      ...args,
+      ...taskData,
       attachments: [],
       order: newOrder,
       createdAt: new Date().toISOString(),
@@ -158,7 +159,7 @@ export const updateTask = mutation({
       throw new Error("Access denied to this task");
     }
     
-    const { id, ...updates } = args;
+    const { id, auth0Id, ...updates } = args;
     await ctx.db.patch(id, {
       ...updates,
       updatedAt: new Date().toISOString(),

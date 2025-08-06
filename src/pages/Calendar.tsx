@@ -65,6 +65,7 @@ export const Calendar: React.FC = () => {
     } : "skip"
   );
   const updateTaskMutation = useMutation(api.tasks.updateTask);
+  const createTaskMutation = useMutation(api.tasks.createTask);
   
   // Transform Convex tasks to match UI Task interface
   const tasks: Task[] = useMemo(() => {
@@ -258,7 +259,7 @@ export const Calendar: React.FC = () => {
     }
   };
 
-  const handleCreateTask = (newTask: {
+  const handleCreateTask = async (newTask: {
     title: string;
     description: string;
     priority: 'low' | 'medium' | 'high';
@@ -268,9 +269,27 @@ export const Calendar: React.FC = () => {
     assignedUsers: string[];
     attachments: Array<{ name: string; url: string; type: string }>;
   }) => {
-    // Task creation is handled in Dashboard.tsx
-    // This function is not used in Calendar view
-    console.warn('Task creation should be handled in Dashboard view');
+    if (!currentWorkspace || !currentUser) {
+      ErrorHandler.handle(new Error('Workspace or user not found'), 'Please log in and select a workspace');
+      return;
+    }
+    
+    try {
+      await createTaskMutation({
+        workspaceId: currentWorkspace.id as Id<"workspaces">,
+        title: newTask.title,
+        description: newTask.description || '',
+        status: 'todo', // Default status for new tasks
+        priority: newTask.priority || 'medium',
+        tagColor: newTask.tagColor || '#3B82F6',
+        tagName: newTask.tagName || 'General',
+        dueDate: newTask.dueDate,
+        assignedUsers: newTask.assignedUsers || [],
+        auth0Id: currentUser.auth0Id
+      });
+    } catch (error) {
+      ErrorHandler.handle(error, 'Failed to create task. Please try again.');
+    }
   };
 
   const activeTask = activeId ? tasks.find(task => task._id === activeId) : null;
