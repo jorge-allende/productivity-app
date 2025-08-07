@@ -201,7 +201,8 @@ export const Dashboard: React.FC = () => {
       await reorderTasksMutation({
         taskId: taskId as Id<"tasks">,
         newStatus: columnIdToStatus(newColumnId),
-        newOrder: newOrder
+        newOrder: newOrder,
+        auth0Id: currentUser?.auth0Id
       });
       console.log(`Successfully moved task "${task.title}"`);
       
