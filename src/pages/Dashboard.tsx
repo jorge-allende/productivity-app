@@ -30,12 +30,23 @@ const statusToColumnId = (status: 'todo' | 'in_progress' | 'done'): string => {
 
 // Helper function to map columnId to Convex status
 const columnIdToStatus = (columnId: string): 'todo' | 'in_progress' | 'done' => {
+  // Map custom columns to a default status based on their position
+  // This ensures tasks don't disappear when moved to custom columns
   const columnMap: Record<string, 'todo' | 'in_progress' | 'done'> = {
     'todo': 'todo',
     'in_progress': 'in_progress',
     'done': 'done'
   };
-  return columnMap[columnId] || 'todo';
+  
+  // If it's a custom column (not one of the predefined ones),
+  // we need to handle it differently. For now, custom columns
+  // will map to 'in_progress' to keep tasks visible
+  if (!columnMap[columnId]) {
+    console.warn(`Custom column "${columnId}" detected. Mapping to 'in_progress' status.`);
+    return 'in_progress';
+  }
+  
+  return columnMap[columnId];
 };
 
 export const Dashboard: React.FC = () => {
@@ -59,33 +70,53 @@ export const Dashboard: React.FC = () => {
   // Track optimistic updates
   const [optimisticUpdates, setOptimisticUpdates] = useState<Map<string, Partial<Task>>>(new Map());
   
+  // Store custom column mappings in state
+  // This maps task IDs to their custom column IDs when they're in custom columns
+  const [customColumnMappings, setCustomColumnMappings] = useState<Map<string, string>>(() => {
+    const saved = safeLocalStorage.getItem<Array<[string, string]>>('customColumnMappings', {
+      fallback: []
+    });
+    return new Map(saved || []);
+  });
+
+  // Save custom column mappings to localStorage when they change
+  useEffect(() => {
+    safeLocalStorage.setItem('customColumnMappings', Array.from(customColumnMappings.entries()));
+  }, [customColumnMappings]);
+
   // Transform Convex tasks to match UI Task interface with optimistic updates
   const tasks: Task[] = useMemo(() => {
     if (!convexTasks) return [];
     
     console.log('Transforming tasks:', convexTasks.length, 'tasks from Convex');
     
-    const baseTasks = convexTasks.map((task: any): Task => ({
-      _id: task._id,
-      title: task.title,
-      description: task.description,
-      columnId: statusToColumnId(task.status),
-      priority: task.priority,
-      tagColor: task.tagColor,
-      tagName: task.tagName,
-      dueDate: task.dueDate,
-      assignedUsers: task.assignedUsers, // For now, using IDs as strings
-      attachments: task.attachments,
-      order: task.order,
-      createdAt: new Date(task.createdAt),
-      updatedAt: new Date(task.updatedAt),
-      completedAt: task.status === 'done' ? new Date(task.updatedAt) : undefined,
-      // These fields need to be fetched separately or handled differently
-      createdBy: 'User', // TODO: Fetch user name from ID
-      watchers: [], // TODO: Implement watchers
-      comments: [], // TODO: Fetch from comments table
-      mentions: [] // TODO: Implement mentions
-    }));
+    const baseTasks = convexTasks.map((task: any): Task => {
+      // Check if this task has a custom column mapping
+      const customColumnId = customColumnMappings.get(task._id);
+      
+      return {
+        _id: task._id,
+        title: task.title,
+        description: task.description,
+        // Use custom column if mapped, otherwise use the status-based column
+        columnId: customColumnId || statusToColumnId(task.status),
+        priority: task.priority,
+        tagColor: task.tagColor,
+        tagName: task.tagName,
+        dueDate: task.dueDate,
+        assignedUsers: task.assignedUsers, // For now, using IDs as strings
+        attachments: task.attachments,
+        order: task.order,
+        createdAt: new Date(task.createdAt),
+        updatedAt: new Date(task.updatedAt),
+        completedAt: task.status === 'done' ? new Date(task.updatedAt) : undefined,
+        // These fields need to be fetched separately or handled differently
+        createdBy: 'User', // TODO: Fetch user name from ID
+        watchers: [], // TODO: Implement watchers
+        comments: [], // TODO: Fetch from comments table
+        mentions: [] // TODO: Implement mentions
+      };
+    });
     
     // Apply optimistic updates
     return baseTasks.map((task: Task) => {
@@ -95,7 +126,7 @@ export const Dashboard: React.FC = () => {
       }
       return task;
     });
-  }, [convexTasks, optimisticUpdates]);
+  }, [convexTasks, optimisticUpdates, customColumnMappings]);
   const [columns, setColumns] = useState<Column[]>(() => {
     return safeLocalStorage.getItem<Column[]>('kanbanColumns', {
       fallback: DEFAULT_COLUMNS,
@@ -148,9 +179,19 @@ export const Dashboard: React.FC = () => {
   const handleDeleteColumn = (columnId: string) => {
     if (columns.length <= 2) return;
     
-    // TODO: Move tasks from deleted column to the first column using Convex mutation
-    // const firstColumnId = columns[0].id;
-    // Need to update all tasks in the deleted column to move to first column
+    // Clean up custom column mappings for the deleted column
+    setCustomColumnMappings(prev => {
+      const newMappings = new Map(prev);
+      // Find all tasks mapped to this column and remove their mappings
+      const tasksToRemove: string[] = [];
+      newMappings.forEach((mappedColumnId, taskId) => {
+        if (mappedColumnId === columnId) {
+          tasksToRemove.push(taskId);
+        }
+      });
+      tasksToRemove.forEach(taskId => newMappings.delete(taskId));
+      return newMappings;
+    });
     
     setColumns(prev => prev.filter(col => col.id !== columnId));
   };
@@ -187,6 +228,25 @@ export const Dashboard: React.FC = () => {
     
     console.log(`Moving task "${task.title}" from ${task.columnId} to ${newColumnId} with order ${newOrder}`);
     
+    // Check if moving to a custom column
+    const isCustomColumn = !['todo', 'in_progress', 'done'].includes(newColumnId);
+    
+    // Update custom column mapping
+    if (isCustomColumn) {
+      setCustomColumnMappings(prev => {
+        const newMappings = new Map(prev);
+        newMappings.set(taskId, newColumnId);
+        return newMappings;
+      });
+    } else {
+      // Remove custom column mapping if moving back to standard column
+      setCustomColumnMappings(prev => {
+        const newMappings = new Map(prev);
+        newMappings.delete(taskId);
+        return newMappings;
+      });
+    }
+    
     // Apply optimistic update
     setOptimisticUpdates(prev => {
       const updates = new Map(prev);
@@ -222,6 +282,15 @@ export const Dashboard: React.FC = () => {
         return updates;
       });
       
+      // Revert custom column mapping on error
+      if (isCustomColumn) {
+        setCustomColumnMappings(prev => {
+          const newMappings = new Map(prev);
+          newMappings.delete(taskId);
+          return newMappings;
+        });
+      }
+      
       ErrorHandler.handle(error, 'Failed to move task. Please try again.');
     }
   };
@@ -251,7 +320,7 @@ export const Dashboard: React.FC = () => {
     }
     
     try {
-      await createTaskMutation({
+      const result = await createTaskMutation({
         workspaceId: currentWorkspace.id as Id<"workspaces">,
         title: taskData.title,
         description: taskData.description || '',
@@ -263,6 +332,17 @@ export const Dashboard: React.FC = () => {
         assignedUsers: taskData.assignedUsers || [],
         auth0Id: currentUser.auth0Id
       });
+      
+      // If task was created in a custom column, save the mapping
+      const isCustomColumn = !['todo', 'in_progress', 'done'].includes(modalColumnId);
+      if (isCustomColumn && result) {
+        setCustomColumnMappings(prev => {
+          const newMappings = new Map(prev);
+          newMappings.set(result, modalColumnId);
+          return newMappings;
+        });
+      }
+      
       setIsModalOpen(false);
     } catch (error) {
       ErrorHandler.handle(error, 'Failed to create task. Please try again.');
